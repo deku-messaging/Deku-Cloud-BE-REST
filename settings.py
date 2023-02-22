@@ -47,6 +47,9 @@ class Configurations(BaseConfig):
     PORT = os.environ.get("PORT")
     ORIGINS = os.environ.get("ORIGINS")
 
+    COOKIE_NAME = "deku"
+    COOKIE_LIFETIME = 15 * 60000 #15 mins in ms
+
     RABBITMQ_USER = os.environ.get("RABBITMQ_USER") or "guest"
     RABBITMQ_PASSWORD = os.environ.get("RABBITMQ_PASSWORD") or "guest"
     RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST") or "127.0.0.1"
@@ -54,7 +57,6 @@ class Configurations(BaseConfig):
     RABBITMQ_SERVER_PORT = os.environ.get("RABBITMQ_SERVER_PORT") or "5672"
 
     RABBITMQ_SSL_ACTIVE = os.environ.get("RABBITMQ_SSL_ACTIVE").lower() in ["true"]
-    print(RABBITMQ_SSL_ACTIVE)
     RABBITMQ_SSL_HOST = os.environ.get("RABBITMQ_SSL_HOST")
     RABBITMQ_MANAGEMENT_PORT_SSL = (
         os.environ.get("RABBITMQ_MANAGEMENT_PORT_SSL") or "15671"

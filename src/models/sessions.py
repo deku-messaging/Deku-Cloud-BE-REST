@@ -167,16 +167,10 @@ class SessionModel:
         else:
             logger.debug("[*] Updaing session '%s' ...", session.sid)
 
-            session_ = self.sessions.update(
-                data=json.dumps(self.cookie_data),
-                expires=self.cookie_data["expires"]
-            ).where(
-                self.sessions.sid == session.sid,
-                self.sessions.unique_identifier == session.unique_identifier,
-                self.sessions.session_type == session.session_type
-            )
+            session.data = json.dumps(self.cookie_data)
+            session.expires = self.cookie_data["expires"]
 
-            session_.execute()
+            session.save()
 
             logger.info("[x] Session Updated")
 

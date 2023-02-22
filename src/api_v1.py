@@ -9,6 +9,7 @@ from werkzeug.exceptions import InternalServerError, BadRequest, Conflict, Unaut
 from src.schemas.db_connector import connection
 
 from src.models.users import UserModel
+from src.models.projects import ProjectModel
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,51 @@ def signup():
             password=password,
             name=name,
             phone_number=phone_number,
+        )
+
+        return "", 200
+
+    except BadRequest as err:
+        return str(err), 400
+
+    except Unauthorized as err:
+        return str(err), 401
+
+    except Conflict as err:
+        return str(err), 409
+
+    except InternalServerError as err:
+        logger.exception(err)
+        return "Internal Server Error", 500
+
+    except Exception as error:
+        logger.exception(error)
+        return "Internal Server Error", 500
+    
+@v1.route("/projects", methods=["POST"])
+def create_project():
+    """Create Project Endpoint"""
+
+    try:
+        if not request.headers.get("User-Agent"):
+            logger.error("[!] No user agent")
+            raise BadRequest()
+
+        if not request.json.get("name"):
+            logger.error("[!] No name provided")
+            raise BadRequest()
+
+        email = request.json.get("email")
+        password = request.json.get("password")
+        name = request.json.get("name")
+        phone_number = request.json.get("phone_number")
+
+        user = UserModel()
+        project = ProjectModel()
+
+        project.create(
+            name=name,
+            user_id=1,
         )
 
         return "", 200

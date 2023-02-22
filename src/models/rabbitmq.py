@@ -31,14 +31,14 @@ class RabbitMQModel:
         self,
         username: str,
         password: str,
-    ) -> object:
+    ) -> None:
         """Add user to rabbitmq.
 
         Keyword arguments:
         username -- user's username (unique)
         password -- user's password
 
-        return: object
+        return: None
         """
 
         try:
@@ -92,3 +92,46 @@ class RabbitMQModel:
 
         except Exception as error:
             raise error
+        
+    def add_exchange(
+        self,
+        vhost: str,
+        name: str,
+    ) -> None:
+        """Add exchange to rabbitmq.
+
+        Keyword arguments:
+        vhost -- vhost name
+        name -- exchange name
+
+        return: None
+        """
+
+        try:
+            add_exchange_url = f"{self.rabbitmq_req_url}/api/exchanges/{vhost}/{name}"
+
+            add_exchange_data = {
+                "type": "topic",
+                "auto_delete":False,
+                "durable":True,
+                "internal":False,
+                "arguments":{}
+            }
+
+            add_exchange_response = requests.put(
+                url=add_exchange_url,
+                json=add_exchange_data,
+                auth=(rabbitmq_user, rabbitmq_password),
+            )
+
+            if add_exchange_response.status_code in [201, 204]:
+                logger.debug("[*] New exchange added")
+                return None
+
+            else:
+                logger.error("[!] Failed to add new exchange")
+                add_exchange_response.raise_for_status()
+
+        except Exception as error:
+            raise error
+        
