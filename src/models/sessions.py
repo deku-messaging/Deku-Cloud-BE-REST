@@ -4,9 +4,7 @@ import logging
 import json
 from datetime import datetime, timedelta
 
-from werkzeug.exceptions import (
-    Unauthorized
-)
+from werkzeug.exceptions import Unauthorized
 
 from src.schemas.sessions import Sessions
 
@@ -16,16 +14,19 @@ SECURE_COOKIE = Configurations.SECURE_COOKIE
 
 logger = logging.getLogger(__name__)
 
+
 class SessionModel:
     """Handler definition"""
+
     def __init__(self, session_lifetime: str) -> None:
-        """
-        """
+        """ """
         self.sessions = Sessions
         self.session_lifetime = session_lifetime
         self.cookie_data = {
             "maxAge": self.session_lifetime,
-            "expires": str(datetime.now() + timedelta(milliseconds=self.session_lifetime)),
+            "expires": str(
+                datetime.now() + timedelta(milliseconds=self.session_lifetime)
+            ),
             "secure": SECURE_COOKIE,
             "httpOnly": True,
             "sameSite": "lax",
@@ -50,7 +51,8 @@ class SessionModel:
         unique_identifier: str,
         user_agent: str,
         status: str = None,
-        session_type: str = None) -> object:
+        session_type: str = None,
+    ) -> object:
         """
         Create session in database.
 
@@ -74,7 +76,7 @@ class SessionModel:
                 expires=self.cookie_data["expires"],
                 data=json.dumps(self.cookie_data),
                 status=status,
-                session_type=session_type
+                session_type=session_type,
             )
 
         except Exception as error:
@@ -86,11 +88,8 @@ class SessionModel:
             return session
 
     def find(
-        self,
-        sid: str,
-        user_agent: str,
-        status: str = None,
-        session_type: str = None) -> object:
+        self, sid: str, user_agent: str, status: str = None, session_type: str = None
+    ) -> object:
         """
         Find session in database.
 
@@ -112,7 +111,7 @@ class SessionModel:
                 self.sessions.sid == sid,
                 self.sessions.user_agent == user_agent,
                 self.sessions.status == status,
-                self.sessions.session_type == session_type
+                self.sessions.session_type == session_type,
             )
 
         except self.sessions.DoesNotExist as error:
@@ -132,11 +131,7 @@ class SessionModel:
 
             return session
 
-    def update(
-        self,
-        sid: str,
-        user_agent: str,
-        session_type: str = None) -> object:
+    def update(self, sid: str, user_agent: str, session_type: str = None) -> object:
         """
         Update session in database.
 
@@ -157,7 +152,7 @@ class SessionModel:
             session = self.sessions.get(
                 self.sessions.sid == sid,
                 self.sessions.user_agent == user_agent,
-                self.sessions.session_type == session_type
+                self.sessions.session_type == session_type,
             )
 
         except self.sessions.DoesNotExist as error:

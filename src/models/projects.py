@@ -21,11 +21,7 @@ class ProjectModel:
         self.users = Users
         self.rabbitmq = RabbitMQModel
 
-    def create(
-        self,
-        name: str,
-        user_id: str
-    ) -> object:
+    def create(self, name: str, user_id: str) -> object:
         """Create a project.
 
         Keyword arguments:
@@ -41,18 +37,14 @@ class ProjectModel:
             logger.debug("[*] Finding project '%s' ...", name)
 
             project = self.projects.get(
-                self.projects.name == name,
-                self.projects.user_id == user_id
+                self.projects.name == name, self.projects.user_id == user_id
             )
 
         except self.projects.DoesNotExist:
             try:
                 logger.debug("[*] Creating project '%s' ...", name)
 
-                project = self.projects.create(
-                    name=name,
-                    user_id=user_id
-                )
+                project = self.projects.create(name=name, user_id=user_id)
 
                 project.project_ref = "PJ" + str(project.id) + str(uuid1())[0:8]
                 project.save()

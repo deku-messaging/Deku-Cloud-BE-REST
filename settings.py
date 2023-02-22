@@ -48,7 +48,7 @@ class Configurations(BaseConfig):
     ORIGINS = os.environ.get("ORIGINS")
 
     COOKIE_NAME = "deku"
-    COOKIE_LIFETIME = 15 * 60000 #15 mins in ms
+    COOKIE_LIFETIME = 15 * 60000  # 15 mins in ms
 
     RABBITMQ_USER = os.environ.get("RABBITMQ_USER") or "guest"
     RABBITMQ_PASSWORD = os.environ.get("RABBITMQ_PASSWORD") or "guest"

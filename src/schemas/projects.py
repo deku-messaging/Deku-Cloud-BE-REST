@@ -21,7 +21,7 @@ class Projects(Model):
         """Meta definition"""
 
         database = connection
-        indexes = ((('name', 'user_id'), True),)
+        indexes = ((("name", "user_id"), True),)
 
 
 if not connection.table_exists("projects"):

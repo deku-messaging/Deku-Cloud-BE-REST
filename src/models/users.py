@@ -1,7 +1,6 @@
 """Users Handler"""
 
 import logging
-from datetime import datetime
 from uuid import uuid1
 
 from Crypto.Hash import MD5
@@ -164,12 +163,6 @@ class UserModel:
 
         try:
             logger.debug("[*] Updating user '%s' ...", id_)
-
-            user = self.users.update(last_seen=datetime.now()).where(
-                self.users.id == id_
-            )
-
-            user.execute()
 
         except Exception as error:
             logger.error("[!] Error updating user. See logs below")

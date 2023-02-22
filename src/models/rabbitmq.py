@@ -92,7 +92,7 @@ class RabbitMQModel:
 
         except Exception as error:
             raise error
-        
+
     def add_exchange(
         self,
         vhost: str,
@@ -112,10 +112,10 @@ class RabbitMQModel:
 
             add_exchange_data = {
                 "type": "topic",
-                "auto_delete":False,
-                "durable":True,
-                "internal":False,
-                "arguments":{}
+                "auto_delete": False,
+                "durable": True,
+                "internal": False,
+                "arguments": {},
             }
 
             add_exchange_response = requests.put(
@@ -134,4 +134,3 @@ class RabbitMQModel:
 
         except Exception as error:
             raise error
-        
