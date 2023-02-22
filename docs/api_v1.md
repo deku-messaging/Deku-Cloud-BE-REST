@@ -14,17 +14,9 @@
 
 ### Signup
 
-- Summary
-
-  - Create a new User
-
-- Path
-
-  - /signup
-
-- Method
-
-  - POST
+- Summary: Create a new User
+- Path: /signup
+- Method: POST
 
 ---
 
@@ -89,17 +81,9 @@ string
 
 ### Login
 
-- Summary
-
-  - Verify an account's credentials
-
-- Path
-
-  - /login
-
-- Method
-
-  - POST
+- Summary: Verify an account's credentials
+- Path: /login
+- Method: POST
 
 ---
 
@@ -162,17 +146,9 @@ string
 
 ### Create Project
 
-- Summary
-
-  - Create a new project
-
-- Path
-
-  - /projects
-
-- Method
-
-  - POST
+- Summary: Create a new project
+- Path: /projects
+- Method: POST
 
 ---
 
