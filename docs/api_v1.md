@@ -5,6 +5,7 @@
 1. [Signup](#signup)
 2. [Login](#login)
 3. [Create Project](#create-project)
+4. [Make Request](#make-request)
 
 ---
 
@@ -15,7 +16,7 @@
 ### Signup
 
 - Summary: Create a new User
-- Path: /signup
+- Path: v1/signup
 - Method: POST
 
 ---
@@ -82,7 +83,7 @@ string
 ### Login
 
 - Summary: Verify an account's credentials
-- Path: /login
+- Path: v1/login
 - Method: POST
 
 ---
@@ -147,7 +148,7 @@ string
 ### Create Project
 
 - Summary: Create a new project
-- Path: /projects
+- Path: v1/projects
 - Method: POST
 
 ---
@@ -175,6 +176,73 @@ string
 	"id": "",
 	"name": "",
 	"created_at": ""
+}
+```
+
+- 400 Bad Request
+
+`application/json`
+
+```json
+string
+```
+
+- 401 Unauthorized
+
+`application/json`
+
+```json
+string
+```
+
+- 409 Conflict
+
+`application/json`
+
+```json
+string
+```
+
+- 500 Internal Server Error
+
+`application/json`
+
+```json
+string
+```
+
+---
+
+### Make Request
+
+- Summary: Make a request for deku services (SMS or Notifications)
+- Path: v1/projects/:project_id/services/:service
+- Method: POST
+
+---
+
+#### RequestBody
+
+- application/json
+
+```json
+{
+	"body": "string",
+	"to": "string"
+}
+```
+
+---
+
+#### Responses
+
+- 200 Success
+
+`application/json`
+
+```json
+{
+	"message_sid": ""
 }
 ```
 
