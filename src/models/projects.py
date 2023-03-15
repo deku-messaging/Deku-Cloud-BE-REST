@@ -3,7 +3,7 @@
 import logging
 from uuid import uuid1
 
-from werkzeug.exceptions import Conflict
+from werkzeug.exceptions import Conflict, NotFound
 
 from src.schemas.projects import Projects
 from src.schemas.users import Users
@@ -31,8 +31,6 @@ class ProjectModel:
         return: object
         """
 
-        rabbitmq = self.rabbitmq()
-
         try:
             logger.debug("[*] Finding project '%s' ...", name)
 
@@ -51,7 +49,9 @@ class ProjectModel:
 
                 user = self.users.get(self.users.id == project.user_id)
 
-                rabbitmq.add_exchange(name=project.project_ref, vhost=user.account_sid)
+                rabbitmq = self.rabbitmq(vhost=user.account_sid)
+
+                rabbitmq.add_exchange(name=project.project_ref)
 
                 logger.info("[x] Successfully created project")
 
@@ -64,3 +64,26 @@ class ProjectModel:
         else:
             logger.error("[!] Project '%s' exists", project.name)
             raise Conflict()
+
+    def find_one(self, pid: str) -> object:
+        """Find a project.
+
+        Keyword arguments:
+        pid -- project's ID
+
+        return: object
+        """
+
+        try:
+            logger.debug("[*] Finding project ...")
+
+            project = self.projects.get(self.projects.project_ref == pid)
+
+        except self.projects.DoesNotExist:
+            msg = "Invalid Project ID."
+            logger.error("[!] %s", msg)
+            raise NotFound(msg)
+
+        else:
+            logger.info("[x] Project Found.")
+            return project

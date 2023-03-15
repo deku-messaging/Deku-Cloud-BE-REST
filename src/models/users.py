@@ -110,60 +110,49 @@ class UserModel:
             logger.info("[x] User Found")
             return user
 
-    def find(self, id_: str) -> object:
-        """Find an account.
+    def authenticate(self, account_sid: str, auth_token: str) -> bool:
+        """Authenticate an account's tokens.
 
         Keyword arguments:
-        id_ -- user's id (unique)
+        account_sid -- user's account_sid
+        auth_token -- user's auth_token
 
-        return: object
+        return: bool
         """
 
-        class Result:
-            """return"""
-
-            email = None
-            name = None
-            phone_number = None
-            address = None
-
-        data_security = self.data_crypto()
-
         try:
-            logger.debug("[*] Finding user_id '%s' ...", id_)
+            logger.debug("[*] Authenticating tokens ...")
 
-            user = self.users.get(
-                self.users.id == id_, self.users.account_status == "approved"
+            self.users.get(
+                self.users.account_sid == account_sid,
+                self.users.auth_token == auth_token,
             )
 
-        except self.users.DoesNotExist as error:
-            logger.error("[!] User not Found")
-            raise Unauthorized() from error
+        except self.users.DoesNotExist:
+            logger.error("[!] Invalid tokens")
+            return False
 
         else:
-            Result.email = data_security.decrypt(data=user.email, iv_=user.iv)
-            Result.name = data_security.decrypt(data=user.name, iv_=user.iv)
-            Result.phone_number = data_security.decrypt(
-                data=user.phone_number, iv_=user.iv
-            )
-            Result.address = data_security.decrypt(data=user.address, iv_=user.iv)
+            logger.info("[x] Valid tokens")
+            return True
 
-            logger.info("[x] User Found")
-
-            return Result
-
-    def update(self, id_: str) -> object:
-        """Update a user's account.
+    def find_one(self, account_sid: str) -> object:
+        """Find a single user account.
 
         Keyword arguments:
-        id_ -- user's id (unique)
+        account_sid -- user's account_sid
 
         return: object
         """
 
         try:
-            logger.debug("[*] Updating user '%s' ...", id_)
+            logger.debug("[*] Finding user ...")
 
-        except Exception as error:
-            logger.error("[!] Error updating user. See logs below")
-            raise error
+            user = self.users.get(self.users.account_sid == account_sid)
+
+        except self.users.DoesNotExist:
+            raise Unauthorized()
+
+        else:
+            logger.info("[x] User Found")
+            return user

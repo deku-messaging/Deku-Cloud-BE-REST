@@ -6,7 +6,13 @@ from datetime import timedelta
 
 from flask import request, Blueprint, Response, jsonify
 
-from werkzeug.exceptions import InternalServerError, BadRequest, Conflict, Unauthorized
+from werkzeug.exceptions import (
+    InternalServerError,
+    BadRequest,
+    Conflict,
+    Unauthorized,
+    NotFound,
+)
 
 from settings import Configurations
 from src.schemas.db_connector import connection
@@ -14,6 +20,7 @@ from src.schemas.db_connector import connection
 from src.models.users import UserModel
 from src.models.projects import ProjectModel
 from src.models.sessions import SessionModel
+from src.models.services import ServerModel
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +220,80 @@ def create_project():
 
     except Conflict as err:
         return str(err), 409
+
+    except InternalServerError as err:
+        logger.exception(err)
+        return "Internal Server Error", 500
+
+    except Exception as error:
+        logger.exception(error)
+        return "Internal Server Error", 500
+
+
+@v1.route("/projects/<string:pid>/services/<string:service>", methods=["POST"])
+def operations(pid: str, service: str):
+    """Operations Endpoint"""
+
+    try:
+        if not request.authorization.get("username"):
+            logger.error("[!] No username")
+            raise BadRequest()
+
+        if not request.authorization.get("password"):
+            logger.error("[!] No password")
+            raise BadRequest()
+
+        if not service.lower() in ["sms", "notification"]:
+            logger.error("Invalid service: %s", service)
+            raise BadRequest()
+
+        if not request.json.get("body"):
+            logger.error("[!] No body")
+            raise BadRequest()
+
+        if not request.json.get("to"):
+            logger.error("[!] No contact to send to")
+            raise BadRequest()
+
+        username = request.authorization.get("username")
+        password = request.authorization.get("password")
+        body = request.json.get("body")
+        to_ = request.json.get("to")
+        body = request.json.get("body")
+
+        project = ProjectModel()
+        project.find_one(pid=pid)
+
+        user = UserModel()
+
+        if not user.authenticate(account_sid=username, auth_token=password):
+            raise Unauthorized()
+
+        service_ = ServerModel(service=service)
+        user_ = user.find_one(account_sid=username)
+
+        message = service_.publish(
+            content=body,
+            identifier=to_,
+            account_sid=user_.account_sid,
+            twilio_account_sid=user_.twilio_account_sid,
+            twilio_auth_token=user_.twilio_auth_token,
+            twilio_service_sid=user_.twilio_service_sid,
+            pid=pid,
+        )
+
+        res = jsonify(message)
+
+        return res, 200
+
+    except BadRequest as err:
+        return str(err), 400
+
+    except Unauthorized as err:
+        return str(err), 401
+
+    except NotFound as err:
+        return str(err), 404
 
     except InternalServerError as err:
         logger.exception(err)

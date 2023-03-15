@@ -57,7 +57,7 @@ class Configurations(BaseConfig):
     RABBITMQ_SERVER_PORT = os.environ.get("RABBITMQ_SERVER_PORT") or "5672"
 
     RABBITMQ_SSL_ACTIVE = os.environ.get("RABBITMQ_SSL_ACTIVE").lower() in ["true"]
-    RABBITMQ_SSL_HOST = os.environ.get("RABBITMQ_SSL_HOST")
     RABBITMQ_MANAGEMENT_PORT_SSL = (
         os.environ.get("RABBITMQ_MANAGEMENT_PORT_SSL") or "15671"
     )
+    RABBITMQ_SERVER_PORT_SSL = os.environ.get("RABBITMQ_SERVER_PORT_SSL") or "5671"
