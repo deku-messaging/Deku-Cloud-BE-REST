@@ -179,7 +179,7 @@ class RabbitMQModel:
         except Exception as error:
             raise error
 
-    def publish(self, routing_key: str, body: dict, exchange: str) -> None:
+    def publish(self, routing_key: str, body: dict, exchange: str, vhost: str) -> None:
         """Publish to a single queue
 
         Keyword arguments:
@@ -201,12 +201,14 @@ class RabbitMQModel:
                 conn_params = pika.ConnectionParameters(
                     port=rabbitmq_ssl_server_port,
                     ssl_options=ssl_options,
+                    virtual_host=vhost,
                     credentials=credentials,
                 )
             else:
                 conn_params = pika.ConnectionParameters(
                     host=rabbitmq_host,
                     port=rabbitmq_server_port,
+                    virtual_host=vhost,
                     credentials=credentials,
                 )
 

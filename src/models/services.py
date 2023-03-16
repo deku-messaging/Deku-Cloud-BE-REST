@@ -95,8 +95,11 @@ class ServerModel:
                         logger.info("[x] Successfully requested with twilio")
                         return {"message_sid": message.sid}
 
-                rabbitmq.publish(body=body, routing_key=service_name, exchange=pid)
+                rabbitmq.publish(
+                    body=body, routing_key=service_name, exchange=pid, vhost=account_sid
+                )
 
+                print(pid, body, service_name, account_sid)
                 logger.info("[x] Successfully requested sms")
 
         except Exception as error:
