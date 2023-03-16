@@ -124,7 +124,9 @@ def login():
             unique_identifier=user_.id, user_agent=user_agent, status=status
         )
 
-        res = Response()
+        res = jsonify(
+            {"account_sid": str(user_.account_sid), "auth_token": str(user_.auth_token)}
+        )
 
         session_data = json.loads(session_.data)
 
