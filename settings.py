@@ -52,7 +52,7 @@ class Configurations(BaseConfig):
 
     RABBITMQ_USER = os.environ.get("RABBITMQ_USER") or "guest"
     RABBITMQ_PASSWORD = os.environ.get("RABBITMQ_PASSWORD") or "guest"
-    RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST") or "127.0.0.1"
+    RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST") or os.environ.get("HOST")
     RABBITMQ_MANAGEMENT_PORT = os.environ.get("RABBITMQ_MANAGEMENT_PORT") or "15672"
     RABBITMQ_SERVER_PORT = os.environ.get("RABBITMQ_SERVER_PORT") or "5672"
 
