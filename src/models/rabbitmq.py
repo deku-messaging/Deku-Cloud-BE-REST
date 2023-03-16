@@ -199,6 +199,7 @@ class RabbitMQModel:
 
                 ssl_options = pika.SSLOptions(context)
                 conn_params = pika.ConnectionParameters(
+                    host=rabbitmq_host,
                     port=rabbitmq_ssl_server_port,
                     ssl_options=ssl_options,
                     virtual_host=vhost,
