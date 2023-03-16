@@ -194,6 +194,8 @@ class RabbitMQModel:
             credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_password)
 
             if rabbitmq_ssl_active:
+                print("cert files ...............")
+                print(rabbitmq_ssl_cacert, rabbitmq_ssl_crt, rabbitmq_ssl_key)
                 context = ssl.create_default_context(cafile=rabbitmq_ssl_cacert)
                 context.load_cert_chain(rabbitmq_ssl_crt, rabbitmq_ssl_key)
 
