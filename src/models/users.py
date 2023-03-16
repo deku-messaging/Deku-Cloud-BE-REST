@@ -41,7 +41,6 @@ class UserModel:
         """
 
         data_security = self.data_crypto()
-        rabbitmq = self.rabbitmq()
 
         account_sid = "AC" + MD5.new(email.encode("utf-8")).hexdigest()
         auth_token = MD5.new(str(uuid1()).encode("utf-8")).hexdigest()
@@ -68,6 +67,7 @@ class UserModel:
                     iv=data_security.iv_,
                 )
 
+                rabbitmq = self.rabbitmq(vhost=user.account_sid)
                 rabbitmq.add_user(username=user.account_sid, password=user.auth_token)
 
                 logger.info("[x] Successfully created user")
