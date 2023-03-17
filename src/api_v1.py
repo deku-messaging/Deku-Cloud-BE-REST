@@ -233,10 +233,14 @@ def create_project():
 
 
 @v1.route("/projects/<string:pid>/services/<string:service>", methods=["POST"])
-def operations(pid: str, service: str):
-    """Operations Endpoint"""
+def publish(pid: str, service: str):
+    """Publish Endpoint"""
 
     try:
+        if not request.authorization:
+            logger.error("[!] No Authorization header")
+            raise Unauthorized()
+
         if not request.authorization.get("username"):
             logger.error("[!] No username")
             raise BadRequest()

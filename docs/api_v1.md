@@ -5,7 +5,7 @@
 1. [Signup](#signup)
 2. [Login](#login)
 3. [Create Project](#create-project)
-4. [Make Request](#make-request)
+4. [Publish](#publish)
 
 ---
 
@@ -213,7 +213,7 @@ string
 
 ---
 
-### Make Request
+### Publish
 
 - Summary: Make a request for deku services (SMS or Notifications)
 - Path: v1/projects/:project_id/services/:service
