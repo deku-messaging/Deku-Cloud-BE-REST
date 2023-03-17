@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class UserModel:
     """Handler definition"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.users = Users
         self.data_crypto = DataCrypto
         self.rabbitmq = RabbitMQModel

@@ -7,6 +7,7 @@ from werkzeug.exceptions import Unauthorized
 from twilio.rest import Client
 
 from src.models.rabbitmq import RabbitMQModel
+from src.models.logs import LogModel
 from src.std_carrier_lib.helpers import CarrierInformation
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ class ServerModel:
     def __init__(self, service: str) -> None:
         self.carrier_information = CarrierInformation
         self.rabbitmq = RabbitMQModel
+        self.log = LogModel
         self.twilio = Client
         self.service = service
 
@@ -39,41 +41,39 @@ class ServerModel:
                 service_provider = ci_.get_operator_name(phone_number=identifier)
                 service_name = f"{pid}_{country_name}_{service_provider}"
 
-        except Exception as error:
-            raise error
-
-        else:
             logger.info("[X] Successfully got service name")
 
             return service_name
+
+        except Exception as error:
+            raise error
 
     def publish(
         self,
         content: str,
         identifier: str,
         pid: str,
-        account_sid: str,
-        twilio_service_sid: str = None,
-        twilio_account_sid: str = None,
-        twilio_auth_token: str = None,
+        user: object,
     ) -> None:
         """Publish content to service
 
         Keyword arguments:
-        account_sid -- user's account sid
+        user -- user's object
         content -- content to be published
         identifier -- phone_number |
         pid -- project_id
-        twilio_service_sid -- user's service_sid
-        twilio_account_sid -- user's account_sid
-        twilio_auth_token -- user's auth_token
 
         return: None
         """
 
-        rabbitmq = self.rabbitmq(vhost=account_sid)
+        log = self.log()
+        rabbitmq = self.rabbitmq(vhost=user.account_sid)
         service_name = self.get_service_name(pid=pid, identifier=identifier)
-        twilio = twilio_account_sid and twilio_service_sid and twilio_auth_token
+        twilio = (
+            user.twilio_account_sid
+            and user.twilio_service_sid
+            and user.twilio_auth_token
+        )
 
         try:
             if self.service.lower() in ["sms"]:
@@ -82,10 +82,12 @@ class ServerModel:
                 if not rabbitmq.find_one_queue(name=service_name):
                     if twilio:
                         try:
-                            client = self.twilio(twilio_account_sid, twilio_auth_token)
+                            client = self.twilio(
+                                user.twilio_account_sid, user.twilio_auth_token
+                            )
                             message = client.messages.create(
                                 body=content,
-                                messaging_service_sid=twilio_service_sid,
+                                messaging_service_sid=user.twilio_service_sid,
                                 to=identifier,
                             )
 
@@ -93,14 +95,118 @@ class ServerModel:
                             raise Unauthorized(error) from error
 
                         logger.info("[x] Successfully requested with twilio")
-                        return {"message_sid": message.sid}
+
+                        channel = "twilio"
+                        sid = message.sid
+                        from_ = message.from_
+                        direction = message.direction
+                        status = message.status
+                        reason = message.error_message
+                        date_created = message.date_created
+                        to_ = message.to
+                        body = message.body
+
+                        log.create(
+                            sid=sid,
+                            service=self.service.lower(),
+                            pid=pid,
+                            to_=to_,
+                            from_=from_,
+                            channel=channel,
+                            user_id=user.id,
+                            direction=direction,
+                            status=status,
+                            reason=reason,
+                        )
+
+                        return {
+                            "sid": sid,
+                            "created_at": date_created,
+                            "direction": direction,
+                            "status": status,
+                            "from": from_,
+                            "to": to_,
+                            "channel": channel,
+                            "body": body,
+                            "reason": reason,
+                        }
+
+                    logger.info("[x] Successfully cancelled sms")
+
+                    channel = None
+                    sid = None
+                    from_ = None
+                    direction = "outbound-api"
+                    status = "cancelled"
+                    reason = "No available channel. Start a Deku SMS client or provide your Twilio messaging credentials."
+                    date_created = None
+                    to_ = identifier
+                    body = content
+
+                    log_ = log.create(
+                        serivce_name=service_name,
+                        service=self.service.lower(),
+                        pid=pid,
+                        to_=to_,
+                        user_id=user.id,
+                        direction=direction,
+                        status=status,
+                        reason=reason,
+                    )
+
+                    return {
+                        "sid": log_.sid,
+                        "created_at": log_.created_at,
+                        "direction": direction,
+                        "status": status,
+                        "from": from_,
+                        "to": to_,
+                        "channel": channel,
+                        "body": body,
+                        "reason": reason,
+                    }
 
                 rabbitmq.publish(
-                    body=body, routing_key=service_name, exchange=pid, vhost=account_sid
+                    body=body,
+                    routing_key=service_name,
+                    exchange=pid,
+                    vhost=user.account_sid,
                 )
 
-                print(pid, body, service_name, account_sid)
                 logger.info("[x] Successfully requested sms")
+
+                channel = "deku_client"
+                sid = None
+                from_ = None
+                direction = "outbound-api"
+                status = "requested"
+                reason = None
+                date_created = None
+                to_ = identifier
+                body = content
+
+                log_ = log.create(
+                    serivce_name=service_name,
+                    service=self.service.lower(),
+                    pid=pid,
+                    to_=to_,
+                    user_id=user.id,
+                    direction=direction,
+                    status=status,
+                    reason=reason,
+                )
+
+                return {
+                    "sid": log_.sid,
+                    "created_at": log_.created_at,
+                    "direction": direction,
+                    "status": status,
+                    "from": from_,
+                    "to": to_,
+                    "channel": channel,
+                    "body": body,
+                    "reason": reason,
+                }
 
         except Exception as error:
             raise error

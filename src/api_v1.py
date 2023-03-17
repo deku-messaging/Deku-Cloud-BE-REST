@@ -281,10 +281,7 @@ def publish(pid: str, service: str):
         message = service_.publish(
             content=body,
             identifier=to_,
-            account_sid=user_.account_sid,
-            twilio_account_sid=user_.twilio_account_sid,
-            twilio_auth_token=user_.twilio_auth_token,
-            twilio_service_sid=user_.twilio_service_sid,
+            user=user_,
             pid=pid,
         )
 
