@@ -5,40 +5,62 @@ from phonenumbers import geocoder, carrier
 
 from src.std_carrier_lib import MCCMNC
 
+INVALID_COUNTRY_CODE_EXCEPTION = "INVALID_COUNTRY_CODE"
+
+
+class InvalidPhoneNUmber(Exception):
+    def __init__(self, message="INVALID PHONE NUMBER"):
+        self.message = message
+        super().__init__(self.message)
+
+
+class InvalidCountryCode(Exception):
+    def __init__(self, message="INVALID COUNTRY CODE"):
+        self.message = message
+        super().__init__(self.message)
+
+
+class MissingCountryCode(Exception):
+    def __init__(self, message="MISSING COUNTRY CODE"):
+        self.message = message
+        super().__init__(self.message)
+
+
+class NotE164Number(Exception):
+    def __init__(self, number, message=None):
+        self.number = number
+        self.message = message or "Not an E164 Number"
+        super().__init__(self.message)
+
+
+class NoMatchOperator(Exception):
+    def __init__(self, number, message=None):
+        self.number = number
+        self.message = message or "no match operator"
+        super().__init__(self.message)
+
+
+class InvalidNumber(Exception):
+    def __init__(self, number, message=None):
+        self.number = number
+        self.message = message or "invalid number"
+        super().__init__(self.message)
+
+
+class BadFormNumber(Exception):
+    def __init__(self, number, message=None):
+        self.number = number
+        self.message = message or "badly formed number"
+        super().__init__(self.message)
+
+
+class NoAvailableModem(Exception):
+    def __init__(self, message=None):
+        self.message = message or "no available modem"
+        super().__init__(self.message)
+
 
 class CarrierInformation:
-
-    INVALID_COUNTRY_CODE_EXCEPTION = "INVALID_COUNTRY_CODE"
-
-    class NotE164Number(Exception):
-        def __init__(self, number, message=None):
-            self.number = number
-            self.message = message or "Not an E164 Number"
-            super().__init__(self.message)
-
-    class NoMatchOperator(Exception):
-        def __init__(self, number, message=None):
-            self.number = number
-            self.message = message or "no match operator"
-            super().__init__(self.message)
-
-    class InvalidNumber(Exception):
-        def __init__(self, number, message=None):
-            self.number = number
-            self.message = message or "invalid number"
-            super().__init__(self.message)
-
-    class BadFormNumber(Exception):
-        def __init__(self, number, message=None):
-            self.number = number
-            self.message = message or "badly formed number"
-            super().__init__(self.message)
-
-    class NoAvailableModem(Exception):
-        def __init__(self, message=None):
-            self.message = message or "no available modem"
-            super().__init__(self.message)
-
     def get_operator_name(
         self, operator_code: str = None, phone_number: str = None
     ) -> str:
@@ -88,9 +110,9 @@ class CarrierInformation:
                 == phonenumbers.NumberParseException.INVALID_COUNTRY_CODE
             ):
                 if MSISDN[0] == "+" or MSISDN[0] == "0":
-                    raise InvalidCountryCode()
+                    raise InvalidCountryCode() from error
                 else:
-                    raise MissingCountryCode()
+                    raise MissingCountryCode() from error
             else:
                 raise error
 
@@ -145,9 +167,9 @@ class CarrierInformation:
                 == phonenumbers.NumberParseException.INVALID_COUNTRY_CODE
             ):
                 if MSISDN[0] == "+" or MSISDN[0] == "0":
-                    raise InvalidCountryCode()
+                    raise InvalidCountryCode() from error
                 else:
-                    raise MissingCountryCode()
+                    raise MissingCountryCode() from error
             else:
                 raise error
 
@@ -168,7 +190,7 @@ class CarrierInformation:
     def is_valid_number(self, MSISDN: str) -> bool:
         """ """
         try:
-            if is_e164(MSISDN):
+            if self.is_e164(MSISDN):
                 _number = phonenumbers.parse(MSISDN, "en")
 
                 if not phonenumbers.is_valid_number(_number):
@@ -184,8 +206,8 @@ class CarrierInformation:
 
     def get_operator_code(self, MSISDN: str) -> str:
         """ """
-        MSISDN_country = get_phonenumber_country(MSISDN=MSISDN)
-        operator_name = get_phonenumber_operator_name(MSISDN=MSISDN)
+        MSISDN_country = self.__get_phonenumber_country__(MSISDN=MSISDN)
+        operator_name = self.__get_phonenumber_carrier_name__(MSISDN=MSISDN)
 
         operator_id = None
         for IMSI, values in MCCMNC.MCC_dict.items():
@@ -223,9 +245,9 @@ class CarrierInformation:
                 == phonenumbers.NumberParseException.INVALID_COUNTRY_CODE
             ):
                 if MSISDN[0] == "+" or MSISDN[0] == "0":
-                    raise BadFormNumber(MSISDN, "INVALID_COUNTRY_CODE")
+                    raise BadFormNumber(MSISDN, "INVALID_COUNTRY_CODE") from error
                 else:
-                    raise BadFormNumber(MSISDN, "MISSING_COUNTRY_CODE")
+                    raise BadFormNumber(MSISDN, "MISSING_COUNTRY_CODE") from error
 
             else:
                 raise error
