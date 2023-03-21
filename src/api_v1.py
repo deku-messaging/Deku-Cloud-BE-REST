@@ -22,6 +22,8 @@ from src.models.projects import ProjectModel
 from src.models.sessions import SessionModel
 from src.models.services import ServerModel
 
+from src.security.password_policy import password_check
+
 logger = logging.getLogger(__name__)
 
 v1 = Blueprint("v1", __name__)
@@ -63,6 +65,8 @@ def signup():
         password = request.json.get("password")
         name = request.json.get("name")
         phone_number = request.json.get("phone_number")
+
+        password_check(password=password)
 
         user = UserModel()
 
