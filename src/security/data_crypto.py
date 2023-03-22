@@ -87,6 +87,7 @@ class DataCrypto:
 
         except (ValueError, KeyError) as error:
             logger.error("[!] Error decrypting data. See logs below")
+            logger.exception(error)
             raise Unauthorized from error
 
         else:

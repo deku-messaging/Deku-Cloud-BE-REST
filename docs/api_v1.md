@@ -5,6 +5,7 @@
 1. [Users](#users)
    1. [Create a user](#create-a-user)
    2. [Authenticate](#authentication)
+   3. [Get user](#get-user)
 2. [Projects](#projects)
    1. [Create a project](#create-a-project)
 3. [Publications](#publications)
@@ -109,6 +110,62 @@ Raised when request completed successfully.
 {
 	"account_sid": "",
 	"auth_token": ""
+}
+```
+
+> [400] Bad Request
+
+Raised when some attributes are omitted or the request isn't structured
+correctly.
+
+> [401] Unauthorized
+
+Raised when the request lacks valid authentication credentials for the requested
+resource.
+
+> [500] Internal Server Error
+
+Raised when the server encountered an unexpected condition that prevented it
+from fulfilling the request.
+
+### Get User
+
+> _**[Authentication](#authentication) Required**_
+
+Details of the currently authenticated user.
+
+```
+GET /
+```
+
+_**Headers**_
+
+| Attribute      | Value            | Required | Description                                                                                                              |
+| :------------- | :--------------- | :------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `Content-Type` | application/json | Yes      | Used to indicate the original [media type](https://developer.mozilla.org/en-US/docs/Glossary/MIME_type) of the resource. |
+
+```shell
+curl --location 'https://staging.smswithoutborders.com:12000/v1/' --header 'Content-Type: application/json'
+```
+
+Example response:
+
+> [200] Successful
+
+Raised when request completed successfully.
+
+```json
+{
+	"account_sid": "",
+	"auth_token": "",
+	"created_at": "",
+	"email": "",
+	"id": "",
+	"name": "",
+	"phone_number": "",
+	"twilio_account_sid": "",
+	"twilio_auth_token": "",
+	"twilio_service_sid": ""
 }
 ```
 
