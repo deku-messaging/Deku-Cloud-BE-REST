@@ -6,6 +6,7 @@
    1. [Create a user](#create-a-user)
    2. [Authenticate](#authentication)
    3. [Get user](#get-user)
+   4. [Update user](#update-user)
 2. [Projects](#projects)
    1. [Create a project](#create-a-project)
 3. [Publications](#publications)
