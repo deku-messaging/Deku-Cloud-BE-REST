@@ -184,6 +184,76 @@ resource.
 Raised when the server encountered an unexpected condition that prevented it
 from fulfilling the request.
 
+### Update User
+
+> _**[Authentication](#authentication) Required**_
+
+Update currently authenticated user's account.
+
+```
+PUT /
+```
+
+_**Headers**_
+
+| Attribute      | Value            | Required | Description                                                                                                              |
+| :------------- | :--------------- | :------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `Content-Type` | application/json | Yes      | Used to indicate the original [media type](https://developer.mozilla.org/en-US/docs/Glossary/MIME_type) of the resource. |
+
+_**Body**_
+
+| Attribute            | Type   | Required | Description                                                                                            |
+| :------------------- | :----- | :------- | :----------------------------------------------------------------------------------------------------- |
+| `name`               | string | No       | A name for account personalization.                                                                    |
+| `phone_number`       | string | No       | An active phone number for extra account security.                                                     |
+| `twilio_account_sid` | string | No       | [Twilio account_sid](https://www.twilio.com/blog/better-twilio-authentication-csharp-twilio-api-keys). |
+| `twilio_auth_token`  | string | No       | [Twilio auth_token](https://www.twilio.com/blog/better-twilio-authentication-csharp-twilio-api-keys).  |
+| `twilio_service_sid` | string | No       | [Twilio messaging service_sid](https://www.twilio.com/docs/glossary/what-is-a-sid)                     |
+
+```shell
+curl --location --request PUT 'https://staging.smswithoutborders.com:12000/v1/' --header 'Content-Type: application/json' --data-raw '{"name": "", "phone_number": "", "twilio_account_sid": "", "twilio_auth_token": "", "twilio_service_sid": ""}'
+```
+
+Example response:
+
+> [200] Successful
+
+Raised when request completed successfully.
+
+```json
+{
+	"account_sid": "",
+	"auth_token": "",
+	"created_at": "",
+	"email": "",
+	"id": "",
+	"name": "",
+	"phone_number": "",
+	"twilio_account_sid": "",
+	"twilio_auth_token": "",
+	"twilio_service_sid": ""
+}
+```
+
+> [400] Bad Request
+
+Raised when some attributes are omitted or the request isn't structured
+correctly.
+
+> [401] Unauthorized
+
+Raised when the request lacks valid authentication credentials for the requested
+resource.
+
+> [409] Conflict
+
+Raised when the requested resource already exist and cannot be duplicated.
+
+> [500] Internal Server Error
+
+Raised when the server encountered an unexpected condition that prevented it
+from fulfilling the request.
+
 ## Projects
 
 ---

@@ -204,3 +204,92 @@ class UserModel:
             Result.created_at = user.created_at
 
             return Result
+
+    def update_one(self, id: str = None, account_sid: str = None, **kwargs) -> object:
+        """Update a single user record.
+
+        Keyword arguments:
+        id -- user's identifier
+        account_sid -- user's account_sid
+
+        return: object
+        """
+        func = self.find_one
+        arguments = list(func.__code__.co_varnames[: func.__code__.co_argcount])
+        arguments.remove("self")
+
+        data_security = self.data_crypto()
+
+        class Result:
+            """return"""
+
+            id = None
+            email = None
+            name = None
+            phone_number = None
+            account_sid = None
+            auth_token = None
+            twilio_account_sid = None
+            twilio_auth_token = None
+            twilio_service_sid = None
+            created_at = None
+
+        try:
+            logger.debug("[*] Finding user ...")
+
+            where_tuple = ()
+
+            for argument in arguments:
+                if eval(argument):
+                    where_tuple += (getattr(self.users, argument) == eval(argument),)
+
+            user = self.users.get(*where_tuple)
+
+        except self.users.DoesNotExist:
+            logger.error("[!] User not found")
+            raise Unauthorized()
+
+        else:
+            try:
+                for item in kwargs.items():
+                    e_list = [
+                        "name",
+                        "phone_number",
+                        "twilio_account_sid",
+                        "twilio_auth_token",
+                        "twilio_service_sid",
+                    ]
+
+                    if item[0] in e_list:
+                        setattr(
+                            user,
+                            item[0],
+                            data_security.encrypt(data=item[1], iv_=user.iv).ciphertext,
+                        )
+
+                user.save()
+
+                Result.id = user.id
+                Result.name = data_security.decrypt(data=user.name, iv_=user.iv)
+                Result.email = data_security.decrypt(data=user.email, iv_=user.iv)
+                Result.phone_number = data_security.decrypt(
+                    data=user.phone_number, iv_=user.iv
+                )
+                Result.account_sid = str(user.account_sid)
+                Result.auth_token = str(user.auth_token)
+                Result.twilio_account_sid = data_security.decrypt(
+                    data=user.twilio_account_sid, iv_=user.iv
+                )
+                Result.twilio_auth_token = data_security.decrypt(
+                    data=user.twilio_auth_token, iv_=user.iv
+                )
+                Result.twilio_service_sid = data_security.decrypt(
+                    data=user.twilio_service_sid, iv_=user.iv
+                )
+                Result.created_at = user.created_at
+
+                return Result
+
+            except Exception as error:
+                logger.error("[!] Error updating user. See logs below")
+                raise error

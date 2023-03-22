@@ -163,7 +163,7 @@ def login():
         return "Internal Server Error", 500
 
 
-@v1.route("/", methods=["GET"])
+@v1.route("/", methods=["GET", "PUT"])
 def user_handler():
     """Manage Authenticated user's account"""
 
@@ -185,6 +185,32 @@ def user_handler():
 
         if method == "get":
             user_ = user.find_one(id=session_.unique_identifier)
+
+            res = jsonify(
+                {
+                    "id": user_.id,
+                    "email": user_.email,
+                    "name": user_.name,
+                    "phone_number": user_.phone_number,
+                    "account_sid": user_.account_sid,
+                    "auth_token": user_.auth_token,
+                    "twilio_account_sid": user_.twilio_account_sid,
+                    "twilio_auth_token": user_.twilio_auth_token,
+                    "twilio_service_sid": user_.twilio_service_sid,
+                    "created_at": user_.created_at,
+                }
+            )
+
+        if method == "put":
+            input_data = {
+                "name": request.json.get("name"),
+                "phone_number": request.json.get("phone_number"),
+                "twilio_account_sid": request.json.get("twilio_account_sid"),
+                "twilio_auth_token": request.json.get("twilio_auth_token"),
+                "twilio_service_sid": request.json.get("twilio_service_sid"),
+            }
+
+            user_ = user.update_one(id=session_.unique_identifier, **input_data)
 
             res = jsonify(
                 {
