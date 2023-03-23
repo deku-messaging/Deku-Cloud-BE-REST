@@ -9,6 +9,8 @@
    4. [Update user](#update-user)
 2. [Projects](#projects)
    1. [Create a project](#create-a-project)
+   2. [List a single project](#list-a-single-project)
+   3. [List all projects](#list-all-projects)
 3. [Publications](#publications)
    1. [Publish](#publish)
 
@@ -314,6 +316,116 @@ resource.
 > [409] Conflict
 
 Raised when the requested resource already exist and cannot be duplicated.
+
+> [500] Internal Server Error
+
+Raised when the server encountered an unexpected condition that prevented it
+from fulfilling the request.
+
+### List a single project
+
+> _**[Authentication](#authentication) Required**_
+
+Details of a single project for the authenticated user.
+
+```
+GET /
+```
+
+_**Headers**_
+
+| Attribute      | Value            | Required | Description                                                                                                              |
+| :------------- | :--------------- | :------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `Content-Type` | application/json | Yes      | Used to indicate the original [media type](https://developer.mozilla.org/en-US/docs/Glossary/MIME_type) of the resource. |
+
+_**Params**_
+
+| Attribute    | Type   | Required | Description                                 |
+| :----------- | :----- | :------- | :------------------------------------------ |
+| `project_id` | string | Yes      | A unique string used to identify a project. |
+
+```shell
+curl --location 'https://staging.smswithoutborders.com:12000/v1/projects/:project_id' --header 'Content-Type: application/json'
+```
+
+Example response:
+
+> [200] Successful
+
+Raised when request completed successfully.
+
+```json
+{
+	"id": "",
+	"name": "",
+	"created_at": ""
+}
+```
+
+> [400] Bad Request
+
+Raised when some attributes are omitted or the request isn't structured
+correctly.
+
+> [401] Unauthorized
+
+Raised when the request lacks valid authentication credentials for the requested
+resource.
+
+> [404] Not Found
+
+Raised when the server cannot find the requested resource.
+
+> [500] Internal Server Error
+
+Raised when the server encountered an unexpected condition that prevented it
+from fulfilling the request.
+
+### List all projects
+
+> _**[Authentication](#authentication) Required**_
+
+Details of all projects for the authenticated user.
+
+```
+GET /
+```
+
+_**Headers**_
+
+| Attribute      | Value            | Required | Description                                                                                                              |
+| :------------- | :--------------- | :------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `Content-Type` | application/json | Yes      | Used to indicate the original [media type](https://developer.mozilla.org/en-US/docs/Glossary/MIME_type) of the resource. |
+
+```shell
+curl --location 'https://staging.smswithoutborders.com:12000/v1/projects' --header 'Content-Type: application/json'
+```
+
+Example response:
+
+> [200] Successful
+
+Raised when request completed successfully.
+
+```json
+[
+	{
+		"id": "",
+		"name": "",
+		"created_at": ""
+	}
+]
+```
+
+> [400] Bad Request
+
+Raised when some attributes are omitted or the request isn't structured
+correctly.
+
+> [401] Unauthorized
+
+Raised when the request lacks valid authentication credentials for the requested
+resource.
 
 > [500] Internal Server Error
 

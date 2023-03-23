@@ -260,17 +260,16 @@ def user_handler():
         return "Internal Server Error", 500
 
 
-@v1.route("/projects", methods=["POST"])
-def create_project():
-    """Create Project Endpoint"""
+@v1.route("/projects", defaults={"pid": None}, methods=["POST", "GET"])
+@v1.route("/projects/<string:pid>", methods=["GET"])
+def project_handler(pid: str):
+    """Manage Projects"""
+
+    method = request.method.lower()
 
     try:
         if not request.headers.get("User-Agent"):
             logger.error("[!] No user agent")
-            raise BadRequest()
-
-        if not request.json.get("name"):
-            logger.error("[!] No name provided")
             raise BadRequest()
 
         if not request.cookies.get(COOKIE_NAME):
@@ -279,7 +278,6 @@ def create_project():
 
         user_agent = request.headers.get("User-Agent")
         sid = request.cookies.get(COOKIE_NAME)
-        name = request.json.get("name")
         status = "active"
 
         project = ProjectModel()
@@ -287,20 +285,41 @@ def create_project():
 
         session_ = session.find(sid=sid, user_agent=user_agent, status=status)
 
-        project_ = project.create(
-            name=name,
-            user_id=session_.unique_identifier,
-        )
+        if method == "get":
+            if pid:
+                project_ = project.find_one(pid=pid, user_id=session_.unique_identifier)
+                project_ = {
+                    "id": project_.project_ref,
+                    "name": project_.name,
+                    "created_at": project_.created_at,
+                }
+
+            else:
+                project_ = project.find_many(user_id=session_.unique_identifier)
+
+            res = jsonify(project_)
+
+        if method == "post":
+            if not request.json.get("name"):
+                logger.error("[!] No name provided")
+                raise BadRequest()
+
+            name = request.json.get("name")
+
+            project_ = project.create(
+                name=name,
+                user_id=session_.unique_identifier,
+            )
+
+            res = jsonify(
+                {
+                    "id": project_.project_ref,
+                    "name": project_.name,
+                    "created_at": project_.created_at,
+                }
+            )
 
         session_ = session.update(sid=sid, user_agent=user_agent)
-
-        res = jsonify(
-            {
-                "id": project_.project_ref,
-                "name": project_.name,
-                "created_at": project_.created_at,
-            }
-        )
 
         session_data = json.loads(session_.data)
 
@@ -320,6 +339,9 @@ def create_project():
 
     except Unauthorized as err:
         return str(err), 401
+
+    except NotFound as err:
+        return str(err), 404
 
     except Conflict as err:
         return str(err), 409
@@ -368,16 +390,15 @@ def publish(pid: str, service: str):
         to_ = request.json.get("to")
         body = request.json.get("body")
 
-        project = ProjectModel()
-        project.find_one(pid=pid)
-
         user = UserModel()
+        project = ProjectModel()
+        service_ = ServerModel(service=service)
 
         if not user.authenticate(account_sid=username, auth_token=password):
             raise Unauthorized()
 
-        service_ = ServerModel(service=service)
         user_ = user.find_one(account_sid=username)
+        project.find_one(pid=pid, user_id=user_.id)
 
         message = service_.publish(
             content=body,

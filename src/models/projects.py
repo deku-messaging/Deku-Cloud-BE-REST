@@ -65,11 +65,12 @@ class ProjectModel:
             logger.error("[!] Project '%s' exists", project.name)
             raise Conflict()
 
-    def find_one(self, pid: str) -> object:
+    def find_one(self, pid: str, user_id: str) -> object:
         """Find a project.
 
         Keyword arguments:
         pid -- project's ID
+        user_id -- project owner's ID
 
         return: object
         """
@@ -77,7 +78,9 @@ class ProjectModel:
         try:
             logger.debug("[*] Finding project ...")
 
-            project = self.projects.get(self.projects.project_ref == pid)
+            project = self.projects.get(
+                self.projects.project_ref == pid, self.projects.user_id == user_id
+            )
 
         except self.projects.DoesNotExist:
             msg = "Invalid Project ID."
@@ -87,3 +90,37 @@ class ProjectModel:
         else:
             logger.info("[x] Project Found.")
             return project
+
+    def find_many(self, user_id: str) -> object:
+        """Find all projects.
+
+        Keyword arguments:
+        user_id -- project owner's ID
+
+        return: object
+        """
+
+        result = []
+
+        try:
+            logger.debug("[*] Finding projects ...")
+
+            projects = self.projects.select().where(self.projects.user_id == user_id)
+
+        except Exception as error:
+            logger.error("[!] Error finding projects. See logs below")
+            raise error
+
+        else:
+            for project in projects.iterator():
+                result.append(
+                    {
+                        "id": project.project_ref,
+                        "name": project.name,
+                        "created_at": project.created_at,
+                    }
+                )
+
+            logger.info("[x] Projects Found.")
+
+            return result
