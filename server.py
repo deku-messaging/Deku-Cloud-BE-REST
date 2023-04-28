@@ -1,6 +1,7 @@
 """Main Module"""
 
 import argparse
+import json
 import logging
 
 from flask import Flask
@@ -8,7 +9,7 @@ from flask_cors import CORS
 
 from settings import Configurations
 
-from src.api_v1 import v1 as user_v1
+from src.api_v1 import v1
 
 HOST = Configurations.HOST
 PORT = Configurations.PORT
@@ -16,13 +17,9 @@ ORIGINS = Configurations.ORIGINS
 
 app = Flask(__name__)
 
-CORS(
-    app,
-    origins=ORIGINS,
-    supports_credentials=True,
-)
+CORS(app, origins=json.loads(ORIGINS), supports_credentials=True)
 
-app.register_blueprint(user_v1, name="user_enpoints", url_prefix="/v1")
+app.register_blueprint(v1, name="v1", url_prefix="/v1")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

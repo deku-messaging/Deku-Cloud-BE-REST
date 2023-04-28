@@ -13,7 +13,7 @@ if MODE and MODE.lower() == "production":
         SSL_KEY = os.environ["SSL_KEY"]
         SSL_PEM = os.environ["SSL_PEM"]
 
-        SECURE_COOKIE = True
+        COOKIE_SECURE = True
 
     BaseConfig = Production
 
@@ -27,7 +27,7 @@ else:
         SSL_KEY = os.environ.get("SSL_KEY") or ""
         SSL_PEM = os.environ.get("SSL_PEM") or ""
 
-        SECURE_COOKIE = False
+        COOKIE_SECURE = False
 
     BaseConfig = Development
 
@@ -40,15 +40,17 @@ class Configurations(BaseConfig):
     MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD")
     MYSQL_DATABASE = os.environ.get("MYSQL_DATABASE")
 
-    SHARED_KEY = os.environ["SHARED_KEY"]
-    HASHING_SALT = os.environ["HASHING_SALT"]
+    ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]
+    HASH_SALT = os.environ["HASH_SALT"]
 
     HOST = os.environ.get("HOST")
     PORT = os.environ.get("PORT")
     ORIGINS = os.environ.get("ORIGINS")
 
     COOKIE_NAME = "deku"
-    COOKIE_LIFETIME = 15 * 60000  # 15 mins in ms
+    COOKIE_MAXAGE = 15 * 60000  # 15 mins in ms
+    COOKIE_HTTPONLY = True
+    COOKIE_SAMESITE = "lax"
 
     RABBITMQ_USER = os.environ.get("RABBITMQ_USER") or "guest"
     RABBITMQ_PASSWORD = os.environ.get("RABBITMQ_PASSWORD") or "guest"

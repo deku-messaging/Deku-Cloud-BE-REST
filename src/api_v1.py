@@ -15,28 +15,26 @@ from werkzeug.exceptions import (
 )
 
 from settings import Configurations
-from src.schemas.db_connector import connection
+from src.orm.peewee.connector import database
 
-from src.models.users import UserModel
-from src.models.projects import ProjectModel
-from src.models.sessions import SessionModel
-from src.models.services import ServerModel
+from src.security.password_policy import check_password_policy
 
-from src.security.password_policy import password_check
+from src.orm.peewee.handlers.session import SessionHandler
+from src.controllers import user, project
+
 
 logger = logging.getLogger(__name__)
 
 v1 = Blueprint("v1", __name__)
 
 COOKIE_NAME = Configurations.COOKIE_NAME
-COOKIE_LIFETIME = Configurations.COOKIE_LIFETIME
 
 
 @v1.after_request
 def after_request(response):
     """After request decorator"""
     try:
-        connection.close()
+        database.close()
         return response
 
     except Exception as error:
@@ -50,34 +48,35 @@ def signup():
 
     try:
         if not request.headers.get("User-Agent"):
-            logger.error("[!] No user agent")
+            logger.error("No user agent")
             raise BadRequest()
 
         if not request.json.get("email"):
-            logger.error("[!] No email provided")
+            logger.error("No email provided")
             raise BadRequest()
 
         if not request.json.get("password"):
-            logger.error("[!] No password provided")
+            logger.error("No password provided")
             raise BadRequest()
 
         email = request.json.get("email")
         password = request.json.get("password")
-        name = request.json.get("name")
+        first_name = request.json.get("first_name")
+        last_name = request.json.get("last_name")
         phone_number = request.json.get("phone_number")
 
-        password_check(password=password)
+        check_password_policy(password=password)
 
-        user = UserModel()
-
-        user.create(
+        if not user.create_user(
             email=email,
             password=password,
-            name=name,
+            first_name=first_name,
+            last_name=last_name,
             phone_number=phone_number,
-        )
+        ):
+            raise Conflict()
 
-        return "", 200
+        return Response(), 200
 
     except BadRequest as err:
         return str(err), 400
@@ -103,44 +102,51 @@ def login():
 
     try:
         if not request.headers.get("User-Agent"):
-            logger.error("[!] No user agent")
+            logger.error("No user agent")
             raise BadRequest()
 
         if not request.json.get("email"):
-            logger.error("[!] No email provided")
+            logger.error("No email provided")
             raise BadRequest()
 
         if not request.json.get("password"):
-            logger.error("[!] No password provided")
+            logger.error("No password provided")
             raise BadRequest()
 
         user_agent = request.headers.get("User-Agent")
         email = request.json.get("email")
         password = request.json.get("password")
-        status = "active"
+        session_status = "active"
 
-        user = UserModel()
-        session = SessionModel(session_lifetime=COOKIE_LIFETIME)
+        session_handler = SessionHandler()
 
-        user_ = user.verify(email=email, password=password)
+        current_user = user.verify_user(email=email, password=password)
 
-        session_ = session.create(
-            unique_identifier=user_.id, user_agent=user_agent, status=status
+        if not current_user:
+            raise Unauthorized()
+
+        new_session = session_handler.create_session(
+            unique_identifier=current_user["id"],
+            user_agent=user_agent,
+            status=session_status,
         )
+
+        session_data = json.loads(new_session.data)
 
         res = jsonify(
-            {"account_sid": str(user_.account_sid), "auth_token": str(user_.auth_token)}
+            {
+                "account_sid": str(current_user["account_sid"]),
+                "auth_token": str(current_user["auth_token"]),
+            }
         )
-
-        session_data = json.loads(session_.data)
 
         res.set_cookie(
             COOKIE_NAME,
-            str(session_.sid),
-            max_age=timedelta(milliseconds=session_data["maxAge"]),
+            str(new_session.sid),
+            max_age=timedelta(milliseconds=session_data["max_age"]),
             secure=session_data["secure"],
-            httponly=session_data["httpOnly"],
-            samesite=session_data["sameSite"],
+            httponly=session_data["httponly"],
+            samesite=session_data["samesite"],
         )
 
         return res, 200
@@ -164,80 +170,61 @@ def login():
 
 
 @v1.route("/", methods=["GET", "PUT"])
-def user_handler():
+def index():
     """Manage Authenticated user's account"""
 
     method = request.method.lower()
 
     try:
         if not request.headers.get("User-Agent"):
-            logger.error("[!] No user agent")
+            logger.error("No user agent")
             raise BadRequest()
+
+        if not request.cookies.get(COOKIE_NAME):
+            logger.error("No cookie")
+            raise Unauthorized()
 
         user_agent = request.headers.get("User-Agent")
         sid = request.cookies.get(COOKIE_NAME)
-        status = "active"
+        session_status = "active"
 
-        user = UserModel()
-        session = SessionModel(session_lifetime=COOKIE_LIFETIME)
+        session_handler = SessionHandler()
 
-        session_ = session.find(sid=sid, user_agent=user_agent, status=status)
+        session = session_handler.get_session_by_field(
+            sid=sid, user_agent=user_agent, status=session_status
+        )
+
+        if not session:
+            raise Unauthorized()
 
         if method == "get":
-            user_ = user.find_one(id=session_.unique_identifier)
+            current_user = user.get_user_by_id(user_id=session.unique_identifier)
 
-            res = jsonify(
-                {
-                    "id": user_.id,
-                    "email": user_.email,
-                    "name": user_.name,
-                    "phone_number": user_.phone_number,
-                    "account_sid": user_.account_sid,
-                    "auth_token": user_.auth_token,
-                    "twilio_account_sid": user_.twilio_account_sid,
-                    "twilio_auth_token": user_.twilio_auth_token,
-                    "twilio_service_sid": user_.twilio_service_sid,
-                    "created_at": user_.created_at,
-                }
-            )
+            if not current_user:
+                raise Unauthorized()
+
+            res = jsonify(current_user)
 
         if method == "put":
-            input_data = {
-                "name": request.json.get("name"),
-                "phone_number": request.json.get("phone_number"),
-                "twilio_account_sid": request.json.get("twilio_account_sid"),
-                "twilio_auth_token": request.json.get("twilio_auth_token"),
-                "twilio_service_sid": request.json.get("twilio_service_sid"),
-            }
+            json_data = request.json
 
-            user_ = user.update_one(id=session_.unique_identifier, **input_data)
-
-            res = jsonify(
-                {
-                    "id": user_.id,
-                    "email": user_.email,
-                    "name": user_.name,
-                    "phone_number": user_.phone_number,
-                    "account_sid": user_.account_sid,
-                    "auth_token": user_.auth_token,
-                    "twilio_account_sid": user_.twilio_account_sid,
-                    "twilio_auth_token": user_.twilio_auth_token,
-                    "twilio_service_sid": user_.twilio_service_sid,
-                    "created_at": user_.created_at,
-                }
+            updated_user = user.update_user(
+                user_id=session.unique_identifier, **json_data
             )
 
-        session_ = session.update(sid=sid, user_agent=user_agent)
+            res = jsonify(updated_user)
 
-        session_data = json.loads(session_.data)
+        session = session_handler.update_session(session_id=sid)
+
+        session_data = json.loads(session.data)
 
         res.set_cookie(
             COOKIE_NAME,
-            str(session_.sid),
-            max_age=timedelta(milliseconds=session_data["maxAge"]),
+            str(session.sid),
+            max_age=timedelta(milliseconds=session_data["max_age"]),
             secure=session_data["secure"],
-            httponly=session_data["httpOnly"],
-            samesite=session_data["sameSite"],
+            httponly=session_data["httponly"],
+            samesite=session_data["samesite"],
         )
 
         return res, 200
@@ -260,76 +247,86 @@ def user_handler():
         return "Internal Server Error", 500
 
 
-@v1.route("/projects", defaults={"pid": None}, methods=["POST", "GET"])
-@v1.route("/projects/<string:pid>", methods=["GET"])
-def project_handler(pid: str):
+@v1.route("/projects", methods=["POST", "GET"])
+def project_handler():
     """Manage Projects"""
 
     method = request.method.lower()
 
     try:
         if not request.headers.get("User-Agent"):
-            logger.error("[!] No user agent")
+            logger.error("No user agent")
             raise BadRequest()
 
         if not request.cookies.get(COOKIE_NAME):
-            logger.error("[!] No cookie")
+            logger.error("No cookie")
             raise Unauthorized()
 
         user_agent = request.headers.get("User-Agent")
         sid = request.cookies.get(COOKIE_NAME)
-        status = "active"
+        session_status = "active"
 
-        project = ProjectModel()
-        session = SessionModel(session_lifetime=COOKIE_LIFETIME)
+        session_handler = SessionHandler()
 
-        session_ = session.find(sid=sid, user_agent=user_agent, status=status)
+        session = session_handler.get_session_by_field(
+            sid=sid, user_agent=user_agent, status=session_status
+        )
+
+        if not session:
+            raise Unauthorized()
 
         if method == "get":
-            if pid:
-                project_ = project.find_one(pid=pid, user_id=session_.unique_identifier)
-                project_ = {
-                    "id": project_.project_ref,
-                    "name": project_.name,
-                    "created_at": project_.created_at,
-                }
+            input_data = {}
 
-            else:
-                project_ = project.find_many(user_id=session_.unique_identifier)
+            if request.args.get("filter"):
+                input_data = {**json.loads(request.args.get("filter"))}
 
-            res = jsonify(project_)
+            if request.args.get("sort"):
+                input_data["sort"] = json.loads(request.args.get("sort"))
+
+            if request.args.get("range"):
+                input_data["data_range"] = json.loads(request.args.get("range"))
+
+            [total, projects_list] = project.get_projects_by_field(
+                user_id=session.unique_identifier,
+                **input_data,
+            )
+
+            res = jsonify(projects_list)
+
+            if request.args.get("range"):
+                res.headers[
+                    "Content-Range"
+                ] = f"rows {input_data['data_range'][0]}-{input_data['data_range'][1]}/{total}"
+                res.headers["Access-Control-Expose-Headers"] = "Content-Range"
 
         if method == "post":
-            if not request.json.get("name"):
-                logger.error("[!] No name provided")
+            if not request.json.get("friendly_name"):
+                logger.error("No friendly name provided")
                 raise BadRequest()
 
-            name = request.json.get("name")
+            friendly_name = request.json.get("friendly_name")
 
-            project_ = project.create(
-                name=name,
-                user_id=session_.unique_identifier,
+            created_project = project.create_project(
+                friendly_name=friendly_name, user_id=session.unique_identifier
             )
 
-            res = jsonify(
-                {
-                    "id": project_.project_ref,
-                    "name": project_.name,
-                    "created_at": project_.created_at,
-                }
-            )
+            if not created_project:
+                raise Conflict()
 
-        session_ = session.update(sid=sid, user_agent=user_agent)
+            res = jsonify(created_project)
 
-        session_data = json.loads(session_.data)
+        session = session_handler.update_session(session_id=sid)
+
+        session_data = json.loads(session.data)
 
         res.set_cookie(
             COOKIE_NAME,
-            str(session_.sid),
-            max_age=timedelta(milliseconds=session_data["maxAge"]),
+            str(session.sid),
+            max_age=timedelta(milliseconds=session_data["max_age"]),
             secure=session_data["secure"],
-            httponly=session_data["httpOnly"],
-            samesite=session_data["sameSite"],
+            httponly=session_data["httponly"],
+            samesite=session_data["samesite"],
         )
 
         return res, 200
@@ -339,9 +336,6 @@ def project_handler(pid: str):
 
     except Unauthorized as err:
         return str(err), 401
-
-    except NotFound as err:
-        return str(err), 404
 
     except Conflict as err:
         return str(err), 409
@@ -355,59 +349,53 @@ def project_handler(pid: str):
         return "Internal Server Error", 500
 
 
-@v1.route("/projects/<string:pid>/services/<string:service>", methods=["POST"])
-def publish(pid: str, service: str):
-    """Publish Endpoint"""
+@v1.route("/projects/<string:project_id>", methods=["GET", "PUT", "DELETE"])
+def single_project(project_id):
+    """Single Project Endpoint"""
+
+    method = request.method.lower()
 
     try:
-        if not request.authorization:
-            logger.error("[!] No Authorization header")
+        if not request.headers.get("User-Agent"):
+            logger.error("No user agent")
+            raise BadRequest()
+
+        if not request.cookies.get(COOKIE_NAME):
+            logger.error("No cookie")
             raise Unauthorized()
 
-        if not request.authorization.get("username"):
-            logger.error("[!] No username")
-            raise BadRequest()
+        user_agent = request.headers.get("User-Agent")
+        sid = request.cookies.get(COOKIE_NAME)
+        session_status = "active"
 
-        if not request.authorization.get("password"):
-            logger.error("[!] No password")
-            raise BadRequest()
+        session_handler = SessionHandler()
 
-        if not service.lower() in ["sms", "notification"]:
-            logger.error("Invalid service: %s", service)
-            raise BadRequest()
-
-        if not request.json.get("body"):
-            logger.error("[!] No body")
-            raise BadRequest()
-
-        if not request.json.get("to"):
-            logger.error("[!] No contact to send to")
-            raise BadRequest()
-
-        username = request.authorization.get("username")
-        password = request.authorization.get("password")
-        body = request.json.get("body")
-        to_ = request.json.get("to")
-        body = request.json.get("body")
-
-        user = UserModel()
-        project = ProjectModel()
-        service_ = ServerModel(service=service)
-
-        if not user.authenticate(account_sid=username, auth_token=password):
-            raise Unauthorized()
-
-        user_ = user.find_one(account_sid=username)
-        project.find_one(pid=pid, user_id=user_.id)
-
-        message = service_.publish(
-            content=body,
-            identifier=to_,
-            user=user_,
-            pid=pid,
+        session = session_handler.get_session_by_field(
+            sid=sid, user_agent=user_agent, status=session_status
         )
 
-        res = jsonify(message)
+        if not session:
+            raise Unauthorized()
+
+        if method.lower() == "get":
+            project_current = project.get_project_by_id(project_id=project_id)
+            if not project_current:
+                raise NotFound(f"Project with ID '{project_id}' not found")
+
+        res = jsonify(project_current)
+
+        session = session_handler.update_session(session_id=sid)
+
+        session_data = json.loads(session.data)
+
+        res.set_cookie(
+            COOKIE_NAME,
+            str(session.sid),
+            max_age=timedelta(milliseconds=session_data["max_age"]),
+            secure=session_data["secure"],
+            httponly=session_data["httponly"],
+            samesite=session_data["samesite"],
+        )
 
         return res, 200
 
@@ -427,3 +415,77 @@ def publish(pid: str, service: str):
     except Exception as error:
         logger.exception(error)
         return "Internal Server Error", 500
+
+
+# @v1.route("/projects/<string:pid>/services/<string:service>", methods=["POST"])
+# def publish(pid: str, service: str):
+#     """Publish Endpoint"""
+
+#     try:
+#         if not request.authorization:
+#             logger.error("No Authorization header")
+#             raise Unauthorized()
+
+#         if not request.authorization.get("username"):
+#             logger.error("No username")
+#             raise BadRequest()
+
+#         if not request.authorization.get("password"):
+#             logger.error("No password")
+#             raise BadRequest()
+
+#         if not service.lower() in ["sms", "notification"]:
+#             logger.error("Invalid service: %s", service)
+#             raise BadRequest()
+
+#         if not request.json.get("body"):
+#             logger.error("No body")
+#             raise BadRequest()
+
+#         if not request.json.get("to"):
+#             logger.error("No contact to send to")
+#             raise BadRequest()
+
+#         username = request.authorization.get("username")
+#         password = request.authorization.get("password")
+#         body = request.json.get("body")
+#         to_ = request.json.get("to")
+#         body = request.json.get("body")
+
+#         user = UserModel()
+#         project = ProjectModel()
+#         service_ = ServerModel(service=service)
+
+#         if not user.authenticate(account_sid=username, auth_token=password):
+#             raise Unauthorized()
+
+#         user_ = user.find_one(account_sid=username)
+#         project.find_one(pid=pid, user_id=user_.id)
+
+#         message = service_.publish(
+#             content=body,
+#             identifier=to_,
+#             user=user_,
+#             pid=pid,
+#         )
+
+#         res = jsonify(message)
+
+#         return res, 200
+
+#     except BadRequest as err:
+#         return str(err), 400
+
+#     except Unauthorized as err:
+#         return str(err), 401
+
+#     except NotFound as err:
+#         return str(err), 404
+
+#     except InternalServerError as err:
+#         logger.exception(err)
+#         return "Internal Server Error", 500
+
+#     except Exception as error:
+#         logger.exception(error)
+#         return "Internal Server Error", 500
