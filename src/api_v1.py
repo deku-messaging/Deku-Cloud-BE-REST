@@ -306,9 +306,12 @@ def project_handler():
                 raise BadRequest()
 
             friendly_name = request.json.get("friendly_name")
+            description = request.json.get("description")
 
             created_project = project.create_project(
-                friendly_name=friendly_name, user_id=session.unique_identifier
+                friendly_name=friendly_name,
+                description=description,
+                user_id=session.unique_identifier,
             )
 
             if not created_project:
@@ -378,11 +381,29 @@ def single_project(project_id):
             raise Unauthorized()
 
         if method.lower() == "get":
-            project_current = project.get_project_by_id(project_id=project_id)
-            if not project_current:
+            current_project = project.get_project_by_id(project_id=project_id)
+            if not current_project:
                 raise NotFound(f"Project with ID '{project_id}' not found")
 
-        res = jsonify(project_current)
+        if method.lower() == "put":
+            friendly_name = request.json.get("friendly_name")
+            description = request.json.get("description")
+
+            current_project = project.update_project(
+                project_id=project_id,
+                friendly_name=friendly_name,
+                description=description,
+            )
+            if not current_project:
+                raise NotFound(f"Project with ID '{project_id}' not found")
+
+        if method.lower() == "delete":
+            if not project.delete_project(project_id=project_id):
+                raise NotFound(f"Project with ID '{project_id}' not found")
+
+            current_project = ""
+
+        res = jsonify(current_project)
 
         session = session_handler.update_session(session_id=sid)
 

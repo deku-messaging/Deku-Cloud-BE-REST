@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from peewee import Model, CharField, DateTimeField, ForeignKeyField
+from peewee import Model, CharField, DateTimeField, ForeignKeyField, TextField
 
 from src.orm.peewee.connector import database
 from src.orm.peewee.models.user import User
@@ -11,8 +11,9 @@ from src.orm.peewee.models.user import User
 class Project(Model):
     """A model for the Project table."""
 
-    reference = CharField(null=True)
     friendly_name = CharField()
+    reference = CharField(null=True)
+    description = TextField(null=True)
     user_id = ForeignKeyField(User)
     created_at = DateTimeField(default=datetime.now)
 

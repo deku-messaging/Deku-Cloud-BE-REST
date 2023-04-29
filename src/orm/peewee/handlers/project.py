@@ -18,12 +18,14 @@ class ProjectHandler:
     def create_project(
         self,
         friendly_name: str,
+        description: str,
         user_id: int,
     ) -> Optional[Project]:
         """
         Create a new project.
 
         :param friendly_name: str - The friendly name of the project.
+        :param description: str - The description of the project.
         :param user_id: int - The ID of the user associated with the project.
 
         :return: Optional[Project] - The newly created project if successful, otherwise None.
@@ -42,7 +44,9 @@ class ProjectHandler:
             return None
 
         try:
-            project = Project.create(friendly_name=friendly_name, user_id=user_id)
+            project = Project.create(
+                friendly_name=friendly_name, description=description, user_id=user_id
+            )
 
             project.reference = "PJ" + str(project.id) + secrets.token_hex(8)
             project.save()

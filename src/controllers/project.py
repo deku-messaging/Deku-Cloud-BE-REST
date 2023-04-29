@@ -14,10 +14,13 @@ from src.utils import rabbitmq
 logger = logging.getLogger(__name__)
 
 
-def create_project(friendly_name: str, user_id: int) -> Optional[Dict]:
+def create_project(
+    friendly_name: str, description: str, user_id: int
+) -> Optional[Dict]:
     """Creates a new project and corresponding RabbitMQ exchange.
 
     :param friendly_name: str - The friendly name of the project.
+    :param description: str - The description of the project.
     :param user_id: int - The ID of the user that the project belongs to.
 
     :return: Optional[Dict] - A dictionary representation of the new project, or None if creation failed.
@@ -25,7 +28,7 @@ def create_project(friendly_name: str, user_id: int) -> Optional[Dict]:
     project_handler = ProjectHandler()
 
     new_project = project_handler.create_project(
-        friendly_name=friendly_name, user_id=user_id
+        friendly_name=friendly_name, description=description, user_id=user_id
     )
 
     if not new_project:
@@ -39,7 +42,10 @@ def create_project(friendly_name: str, user_id: int) -> Optional[Dict]:
 
     try:
         rabbitmq.create_exchange(
-            name=new_project.reference, virtual_host=user.account_sid
+            name=new_project.reference,
+            virtual_host=user.account_sid,
+            type="topic",
+            durable=True,
         )
     except Exception as error:
         # Rollback changes.
@@ -121,3 +127,36 @@ def get_projects_by_field(user_id: int, **kwargs) -> list:
         result[1].append(model_to_dict(project, recurse=False))
 
     return result
+
+
+def update_project(
+    project_id: int, friendly_name: str, description: str
+) -> Optional[Dict]:
+    project_handler = ProjectHandler()
+
+    project = project_handler.update_project(
+        project_id=project_id, friendly_name=friendly_name, description=description
+    )
+
+    return model_to_dict(project, recurse=False)
+
+
+def delete_project(project_id: int) -> bool:
+    project_handler = ProjectHandler()
+    user_handler = UserHandler()
+
+    project = project_handler.get_project_by_id(project_id=project_id)
+
+    if not project:
+        return None
+
+    user = user_handler.get_user_by_id(user_id=project.user_id)
+
+    if not user:
+        raise Unauthorized()
+
+    rabbitmq.delete_exchange(name=project.reference, virtual_host=user.account_sid)
+
+    project.delete_instance()
+
+    return True
