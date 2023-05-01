@@ -115,7 +115,7 @@ def get_projects_by_field(user_id: int, **kwargs) -> list:
         user = user_handler.get_user_by_id(user_id=project.user_id)
 
         if not user:
-            raise Unauthorized()
+            raise Unauthorized("The user who owns this project does not exist.")
 
         if not rabbitmq.get_exhange_by_name(
             name=project.reference, virtual_host=user.account_sid
@@ -132,6 +132,16 @@ def get_projects_by_field(user_id: int, **kwargs) -> list:
 def update_project(
     project_id: int, friendly_name: str, description: str
 ) -> Optional[Dict]:
+    """
+    Updates the project identified by the given ID with the new friendly_name and description.
+
+    :param project_id: int - The ID of the project to update.
+    :param friendly_name: str - The new friendly name for the project.
+    :param description: str - The new description for the project.
+
+    :return: Optional[Dict] - The dictionary representation of the updated project, or None if the project with the given ID was not found.
+    """
+
     project_handler = ProjectHandler()
 
     project = project_handler.update_project(
@@ -142,6 +152,16 @@ def update_project(
 
 
 def delete_project(project_id: int) -> bool:
+    """
+    Deletes the project identified by the given ID, including its RabbitMQ exchange and all related data.
+
+    :param project_id: int - The ID of the project to delete.
+
+    :return: bool - True if the project was deleted successfully, False otherwise.
+
+    :raises: Unauthorized if the user who owns the project with the given ID does not exist.
+    """
+
     project_handler = ProjectHandler()
     user_handler = UserHandler()
 
@@ -153,7 +173,7 @@ def delete_project(project_id: int) -> bool:
     user = user_handler.get_user_by_id(user_id=project.user_id)
 
     if not user:
-        raise Unauthorized()
+        raise Unauthorized("The user who owns this project does not exist.")
 
     rabbitmq.delete_exchange(name=project.reference, virtual_host=user.account_sid)
 

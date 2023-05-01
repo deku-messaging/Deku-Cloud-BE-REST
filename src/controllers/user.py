@@ -7,6 +7,8 @@ from playhouse.shortcuts import model_to_dict
 
 from src.security.crypto import DataSecurity
 from src.orm.peewee.handlers.user import UserHandler
+from src.orm.peewee.handlers.project import ProjectHandler
+from src.controllers.project import delete_project
 from src.utils import rabbitmq
 
 logger = logging.getLogger(__name__)
@@ -21,6 +23,11 @@ def encrypt_user_data(user: dict) -> dict:
     :return: dict - The encrypted user dictionary.
     """
     data_security = DataSecurity()
+
+    if user.get("new_password"):
+        user["password"] = data_security.hash_password(password=user["new_password"])
+        del user["new_password"]
+
     keys_to_encrypt = [
         "first_name",
         "last_name",
@@ -171,9 +178,48 @@ def update_user(user_id: int, **kwargs: dict) -> Dict[str, Union[int, str]]:
     """
     user_handler = UserHandler()
 
+    if kwargs.get("password") and kwargs.get("new_password"):
+        if not verify_user(email=kwargs.get("email"), password=kwargs.get("password")):
+            return None
+
+        del kwargs["password"]
+
     user_data = encrypt_user_data(user=kwargs)
     user = user_handler.update_user(user_id=user_id, **user_data)
     user = model_to_dict(user)
     user = decrypt_user_data(user)
 
     return user
+
+
+def delete_user(user_id: int, **kwargs: dict) -> bool:
+    """
+    Delete a user by ID, and all associated projects.
+
+    :param user_id: int - The ID of the user to delete.
+    :param kwargs: dict - Optional keyword arguments for deleting user.
+
+    :return: bool - True if user was successfully deleted and False otherwise.
+    """
+    user_handler = UserHandler()
+    project_handler = ProjectHandler()
+    data_security = DataSecurity()
+
+    user = user_handler.get_user_by_id(user_id=user_id)
+
+    if not data_security.check_password(
+        password=kwargs.get("password"), hashed_password=user.password
+    ):
+        return None
+
+    # delete all the user's projects before deleting the user
+    [total, projects_list] = project_handler.get_projects_by_field(user_id=user_id)
+
+    for project in projects_list:
+        delete_project(project_id=project.id)
+
+    rabbitmq.delete_user(username=user.account_sid)
+    rabbitmq.delete_virtual_host(name=user.account_sid)
+    user.delete_instance()
+
+    return True

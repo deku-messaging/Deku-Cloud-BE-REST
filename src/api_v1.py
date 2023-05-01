@@ -169,7 +169,7 @@ def login():
         return "Internal Server Error", 500
 
 
-@v1.route("/", methods=["GET", "PUT"])
+@v1.route("/", methods=["GET", "PUT", "DELETE"])
 def index():
     """Manage Authenticated user's account"""
 
@@ -213,6 +213,14 @@ def index():
             )
 
             res = jsonify(updated_user)
+
+        if method == "delete":
+            json_data = request.json
+
+            if not user.delete_user(user_id=session.unique_identifier, **json_data):
+                raise Unauthorized()
+
+            res = Response()
 
         session = session_handler.update_session(session_id=sid)
 

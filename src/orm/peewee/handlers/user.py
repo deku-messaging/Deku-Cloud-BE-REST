@@ -5,14 +5,13 @@ from datetime import datetime
 from typing import Optional
 
 from src.orm.peewee.models.user import User
-from src.orm.peewee.handlers.project import ProjectHandler
 
 logger = logging.getLogger(__name__)
 
 
-class UserHandler(ProjectHandler):
+class UserHandler:
     """
-    A class for handling CRUD operations on the User model, including managing projects.
+    A class for handling CRUD operations on the User model.
     """
 
     def create_user(self, email: str, password: str, **kwargs) -> Optional[User]:
@@ -184,12 +183,6 @@ class UserHandler(ProjectHandler):
             if not user:
                 logger.error("User with ID %s does not exist.", user_id)
                 return False
-
-            # delete all the user's projects before deleting the user
-            [total, projects_list] = self.get_projects_by_field(user_id=user_id)
-
-            for project in projects_list:
-                self.delete_project(project.id)
 
             user.delete_instance()
 
