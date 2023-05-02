@@ -5,6 +5,7 @@ import json
 from datetime import timedelta
 
 from flask import request, Blueprint, Response, jsonify
+from playhouse.shortcuts import model_to_dict
 
 from werkzeug.exceptions import (
     InternalServerError,
@@ -20,6 +21,7 @@ from src.orm.peewee.connector import database
 from src.security.password_policy import check_password_policy
 
 from src.orm.peewee.handlers.session import SessionHandler
+from src.orm.peewee.handlers.log import LogHandler
 from src.controllers import user, project
 
 
@@ -256,7 +258,7 @@ def index():
 
 
 @v1.route("/projects", methods=["POST", "GET"])
-def project_handler():
+def project_endpoint():
     """Manage Projects"""
 
     method = request.method.lower()
@@ -361,7 +363,7 @@ def project_handler():
 
 
 @v1.route("/projects/<string:project_id>", methods=["GET", "PUT", "DELETE"])
-def single_project(project_id):
+def single_project_endpoint(project_id):
     """Single Project Endpoint"""
 
     method = request.method.lower()
@@ -412,6 +414,163 @@ def single_project(project_id):
             current_project = ""
 
         res = jsonify(current_project)
+
+        session = session_handler.update_session(session_id=sid)
+
+        session_data = json.loads(session.data)
+
+        res.set_cookie(
+            COOKIE_NAME,
+            str(session.sid),
+            max_age=timedelta(milliseconds=session_data["max_age"]),
+            secure=session_data["secure"],
+            httponly=session_data["httponly"],
+            samesite=session_data["samesite"],
+        )
+
+        return res, 200
+
+    except BadRequest as err:
+        return str(err), 400
+
+    except Unauthorized as err:
+        return str(err), 401
+
+    except NotFound as err:
+        return str(err), 404
+
+    except InternalServerError as err:
+        logger.exception(err)
+        return "Internal Server Error", 500
+
+    except Exception as error:
+        logger.exception(error)
+        return "Internal Server Error", 500
+
+
+@v1.route("/logs", methods=["GET"])
+def log_endpoint():
+    """Manage Logs"""
+
+    method = request.method.lower()
+
+    try:
+        if not request.headers.get("User-Agent"):
+            logger.error("No user agent")
+            raise BadRequest()
+
+        if not request.cookies.get(COOKIE_NAME):
+            logger.error("No cookie")
+            raise Unauthorized()
+
+        user_agent = request.headers.get("User-Agent")
+        sid = request.cookies.get(COOKIE_NAME)
+        session_status = "active"
+
+        session_handler = SessionHandler()
+        log_handler = LogHandler()
+
+        session = session_handler.get_session_by_field(
+            sid=sid, user_agent=user_agent, status=session_status
+        )
+
+        if not session:
+            raise Unauthorized()
+
+        if method == "get":
+            input_data = {}
+
+            if request.args.get("filter"):
+                input_data = {**json.loads(request.args.get("filter"))}
+
+            if request.args.get("sort"):
+                input_data["sort"] = json.loads(request.args.get("sort"))
+
+            if request.args.get("range"):
+                input_data["data_range"] = json.loads(request.args.get("range"))
+
+            [total, logs_list] = log_handler.get_logs_by_field(
+                user_id=session.unique_identifier,
+                **input_data,
+            )
+
+            res = jsonify([model_to_dict(log, recurse=False) for log in logs_list])
+
+            if request.args.get("range"):
+                res.headers[
+                    "Content-Range"
+                ] = f"rows {input_data['data_range'][0]}-{input_data['data_range'][1]}/{total}"
+                res.headers["Access-Control-Expose-Headers"] = "Content-Range"
+
+        session = session_handler.update_session(session_id=sid)
+
+        session_data = json.loads(session.data)
+
+        res.set_cookie(
+            COOKIE_NAME,
+            str(session.sid),
+            max_age=timedelta(milliseconds=session_data["max_age"]),
+            secure=session_data["secure"],
+            httponly=session_data["httponly"],
+            samesite=session_data["samesite"],
+        )
+
+        return res, 200
+
+    except BadRequest as err:
+        return str(err), 400
+
+    except Unauthorized as err:
+        return str(err), 401
+
+    except Conflict as err:
+        return str(err), 409
+
+    except InternalServerError as err:
+        logger.exception(err)
+        return "Internal Server Error", 500
+
+    except Exception as error:
+        logger.exception(error)
+        return "Internal Server Error", 500
+
+
+@v1.route("/logs/<string:log_id>", methods=["DELETE"])
+def single_log_endpoint(log_id):
+    """Single Log Endpoint"""
+
+    method = request.method.lower()
+
+    try:
+        if not request.headers.get("User-Agent"):
+            logger.error("No user agent")
+            raise BadRequest()
+
+        if not request.cookies.get(COOKIE_NAME):
+            logger.error("No cookie")
+            raise Unauthorized()
+
+        user_agent = request.headers.get("User-Agent")
+        sid = request.cookies.get(COOKIE_NAME)
+        session_status = "active"
+
+        session_handler = SessionHandler()
+        log_handler = LogHandler()
+
+        session = session_handler.get_session_by_field(
+            sid=sid, user_agent=user_agent, status=session_status
+        )
+
+        if not session:
+            raise Unauthorized()
+
+        if method.lower() == "delete":
+            if not log_handler.delete_log(log_id=log_id):
+                raise NotFound(f"Log with ID '{log_id}' not found")
+
+            current_log = ""
+
+        res = jsonify(current_log)
 
         session = session_handler.update_session(session_id=sid)
 

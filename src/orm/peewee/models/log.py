@@ -11,7 +11,7 @@ from src.orm.peewee.models.user import User
 class Log(Model):
     """A model for the log table."""
 
-    sid = CharField(primary_key=True)
+    sid = CharField()
     service_id = CharField(null=True)
     service_name = CharField(null=True)
     project_reference = CharField(null=True)
