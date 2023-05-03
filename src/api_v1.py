@@ -22,7 +22,8 @@ from src.security.password_policy import check_password_policy
 
 from src.orm.peewee.handlers.session import SessionHandler
 from src.orm.peewee.handlers.log import LogHandler
-from src.controllers import user, project
+from src.orm.peewee.handlers.user import UserHandler
+from src.controllers import user, project, service
 
 
 logger = logging.getLogger(__name__)
@@ -448,7 +449,7 @@ def single_project_endpoint(project_id):
         return "Internal Server Error", 500
 
 
-@v1.route("/logs", methods=["GET"])
+@v1.route("/logs", methods=["GET", "DELETE"])
 def log_endpoint():
     """Manage Logs"""
 
@@ -501,6 +502,16 @@ def log_endpoint():
                     "Content-Range"
                 ] = f"rows {input_data['data_range'][0]}-{input_data['data_range'][1]}/{total}"
                 res.headers["Access-Control-Expose-Headers"] = "Content-Range"
+
+        if method == "delete":
+            filters_ = json.loads(request.args.get("filter"))
+
+            if isinstance(filters_.get("id"), list):
+                for log_id in filters_["id"]:
+                    if not log_handler.delete_log(log_id=log_id):
+                        logger.error("Log with ID '%s' not found", log_id)
+
+            res = jsonify(filters_["id"])
 
         session = session_handler.update_session(session_id=sid)
 
@@ -564,7 +575,7 @@ def single_log_endpoint(log_id):
         if not session:
             raise Unauthorized()
 
-        if method.lower() == "delete":
+        if method == "delete":
             if not log_handler.delete_log(log_id=log_id):
                 raise NotFound(f"Log with ID '{log_id}' not found")
 
@@ -605,75 +616,86 @@ def single_log_endpoint(log_id):
         return "Internal Server Error", 500
 
 
-# @v1.route("/projects/<string:pid>/services/<string:service>", methods=["POST"])
-# def publish(pid: str, service: str):
-#     """Publish Endpoint"""
+@v1.route("/projects/<string:reference>/services/<string:service_id>", methods=["POST"])
+def publish_endpoint(reference: str, service_id: str):
+    """Publish Endpoint"""
 
-#     try:
-#         if not request.authorization:
-#             logger.error("No Authorization header")
-#             raise Unauthorized()
+    try:
+        if not request.authorization:
+            logger.error("No Authorization header")
+            raise Unauthorized()
 
-#         if not request.authorization.get("username"):
-#             logger.error("No username")
-#             raise BadRequest()
+        if not request.authorization.get("username"):
+            logger.error("No username")
+            raise BadRequest()
 
-#         if not request.authorization.get("password"):
-#             logger.error("No password")
-#             raise BadRequest()
+        if not request.authorization.get("password"):
+            logger.error("No password")
+            raise BadRequest()
 
-#         if not service.lower() in ["sms", "notification"]:
-#             logger.error("Invalid service: %s", service)
-#             raise BadRequest()
+        if not service_id.lower() in ["sms", "notification"]:
+            logger.error("Invalid service: %s", service_id)
+            raise BadRequest()
 
-#         if not request.json.get("body"):
-#             logger.error("No body")
-#             raise BadRequest()
+        if not request.json.get("body"):
+            logger.error("No body")
+            raise BadRequest()
 
-#         if not request.json.get("to"):
-#             logger.error("No contact to send to")
-#             raise BadRequest()
+        if not request.json.get("to"):
+            logger.error("No contact to send to")
+            raise BadRequest()
 
-#         username = request.authorization.get("username")
-#         password = request.authorization.get("password")
-#         body = request.json.get("body")
-#         to_ = request.json.get("to")
-#         body = request.json.get("body")
+        username = request.authorization.get("username")
+        password = request.authorization.get("password")
+        body = request.json.get("body")
+        to_ = request.json.get("to")
 
-#         user = UserModel()
-#         project = ProjectModel()
-#         service_ = ServerModel(service=service)
+        user_handler = UserHandler()
 
-#         if not user.authenticate(account_sid=username, auth_token=password):
-#             raise Unauthorized()
+        [user_total, users_list] = user_handler.get_users_by_field(
+            account_sid=username, auth_token=password
+        )
 
-#         user_ = user.find_one(account_sid=username)
-#         project.find_one(pid=pid, user_id=user_.id)
+        if user_total < 1 and len(users_list) < 1:
+            logger.error("User not found.")
+            raise Unauthorized()
 
-#         message = service_.publish(
-#             content=body,
-#             identifier=to_,
-#             user=user_,
-#             pid=pid,
-#         )
+        current_user = user.get_user_by_id(user_id=users_list[0].id)
 
-#         res = jsonify(message)
+        [project_total, projects_list] = project.get_projects_by_field(
+            reference=reference, user_id=current_user.get("id")
+        )
 
-#         return res, 200
+        if project_total < 1 and len(projects_list) < 1:
+            err_message = f"Project with reference {reference} not found"
+            logger.error(err_message)
+            raise NotFound(err_message)
 
-#     except BadRequest as err:
-#         return str(err), 400
+        message = service.publish_to_service(
+            service_id=service_id,
+            content=body,
+            project_reference=reference,
+            phone_number=to_,
+            user=current_user,
+        )
 
-#     except Unauthorized as err:
-#         return str(err), 401
+        res = jsonify(message)
 
-#     except NotFound as err:
-#         return str(err), 404
+        return res, 200
 
-#     except InternalServerError as err:
-#         logger.exception(err)
-#         return "Internal Server Error", 500
+    except BadRequest as err:
+        return str(err), 400
 
-#     except Exception as error:
-#         logger.exception(error)
-#         return "Internal Server Error", 500
+    except Unauthorized as err:
+        return str(err), 401
+
+    except NotFound as err:
+        return str(err), 404
+
+    except InternalServerError as err:
+        logger.exception(err)
+        return "Internal Server Error", 500
+
+    except Exception as error:
+        logger.exception(error)
+        return "Internal Server Error", 500

@@ -280,20 +280,18 @@ def get_queue_by_name(name: str, virtual_host: str) -> dict:
     return response.json()
 
 
-def publish(routing_key: str, body: dict, exchange: str, virtual_host: str) -> None:
-    """Publish a message to a RabbitMQ exchange.
+def publish_to_exchange(
+    routing_key: str, body: dict, exchange: str, virtual_host: str
+) -> bool:
+    """
+    Publish a message to an exchange on a RabbitMQ broker.
 
-    Args:
-        routing_key (str): The routing key used to route the message to the appropriate queue.
-        body (dict): The message body to be published.
-        exchange (str): The exchange name.
-        virtual_host (str): The virtual host to use.
+    :param routing_key: str - The routing key for the message.
+    :param body: dict - The message body as a dictionary.
+    :param exchange: str - The exchange to publish the message to.
+    :param virtual_host: str - The virtual host on the RabbitMQ server to use.
 
-    Raises:
-        Exception: If an error occurs while publishing the message.
-
-    Returns:
-        None
+    :return: bool - True if the message was successfully published, False otherwise.
     """
     credentials = pika.PlainCredentials(*AUTH)
     ssl_options = None
@@ -327,3 +325,6 @@ def publish(routing_key: str, body: dict, exchange: str, virtual_host: str) -> N
 
     except Exception as error:
         raise error
+
+    logger.info("Successfully published to queue '%s'", routing_key)
+    return True

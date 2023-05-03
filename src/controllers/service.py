@@ -5,6 +5,7 @@ import logging
 from werkzeug.exceptions import BadRequest
 
 from twilio.rest import Client as Twilio
+from twilio.base.exceptions import TwilioRestException
 
 from playhouse.shortcuts import model_to_dict
 
@@ -49,18 +50,38 @@ def publish_to_service(
 
     has_twilio = all((twilio_account_sid, twilio_service_sid, twilio_auth_token))
 
-    if service_id.lower() == ["sms"]:
+    if service_id.lower() == "sms":
         if not rabbitmq.get_queue_by_name(name=service_name, virtual_host=account_sid):
             if has_twilio:
                 twilio_client = Twilio(
                     username=twilio_account_sid, password=twilio_auth_token
                 )
 
-                message = twilio_client.messages.create(
-                    body=content,
-                    messaging_service_sid=twilio_service_sid,
-                    to=phone_number,
-                )
+                try:
+                    message = twilio_client.messages.create(
+                        body=content,
+                        messaging_service_sid=twilio_service_sid,
+                        to=phone_number,
+                    )
+                except TwilioRestException as error:
+                    logger.error("Failed publised with twilio client")
+
+                    log_data = {
+                        "channel": "twilio",
+                        "status": "failed",
+                        "reason": error.msg,
+                        "to_": phone_number,
+                        "body": content,
+                    }
+
+                    new_log = log_handler.create_log(
+                        user_id=user_id,
+                        service_id=service_id.lower(),
+                        project_reference=project_reference,
+                        **log_data,
+                    )
+
+                    raise error
 
                 logger.info("Successfully publised with twilio client")
 
@@ -80,15 +101,16 @@ def publish_to_service(
                     user_id=user_id,
                     service_id=service_id.lower(),
                     project_reference=project_reference,
-                    **log_data
+                    **log_data,
                 )
 
             else:
-                logger.info("Successfully cancelled sms")
+                logger.info("Failed to publish sms")
 
                 log_data = {
+                    "service_name": service_name,
                     "direction": "outbound-api",
-                    "status": "cancelled",
+                    "status": "failed",
                     "reason": "No available channel. Start a Deku SMS client or provide your Twilio messaging credentials.",
                     "to_": phone_number,
                     "body": content,
@@ -98,13 +120,13 @@ def publish_to_service(
                     user_id=user_id,
                     service_id=service_id.lower(),
                     project_reference=project_reference,
-                    **log_data
+                    **log_data,
                 )
 
         else:
             body = {"text": content, "number": phone_number}
 
-            rabbitmq.publish(
+            rabbitmq.publish_to_exchange(
                 body=body,
                 routing_key=service_name,
                 exchange=project_reference,
@@ -115,6 +137,7 @@ def publish_to_service(
 
             log_data = {
                 "channel": "deku_client",
+                "service_name": service_name,
                 "direction": "outbound-api",
                 "status": "requested",
                 "to_": phone_number,
@@ -125,11 +148,11 @@ def publish_to_service(
                 user_id=user_id,
                 service_id=service_id.lower(),
                 project_reference=project_reference,
-                **log_data
+                **log_data,
             )
 
         return model_to_dict(new_log, recurse=False)
 
-    error_message = "Unsupported service_id"
+    error_message = f"Unsupported service_id '{service_id}'"
     logger.error(error_message)
     raise BadRequest(error_message)

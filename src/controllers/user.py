@@ -182,7 +182,7 @@ def update_user(user_id: int, **kwargs: dict) -> Dict[str, Union[int, str]]:
         if not verify_user(email=kwargs.get("email"), password=kwargs.get("password")):
             return None
 
-        del kwargs["password"]
+    del kwargs["password"]
 
     user_data = encrypt_user_data(user=kwargs)
     user = user_handler.update_user(user_id=user_id, **user_data)
