@@ -8,6 +8,7 @@ from playhouse.shortcuts import model_to_dict
 from src.security.crypto import DataSecurity
 from src.orm.peewee.handlers.user import UserHandler
 from src.orm.peewee.handlers.project import ProjectHandler
+from src.orm.peewee.handlers.log import LogHandler
 from src.controllers.project import delete_project
 from src.utils import rabbitmq
 
@@ -182,7 +183,8 @@ def update_user(user_id: int, **kwargs: dict) -> Dict[str, Union[int, str]]:
         if not verify_user(email=kwargs.get("email"), password=kwargs.get("password")):
             return None
 
-    del kwargs["password"]
+    if kwargs.get("password"):
+        del kwargs["password"]
 
     user_data = encrypt_user_data(user=kwargs)
     user = user_handler.update_user(user_id=user_id, **user_data)
@@ -203,6 +205,7 @@ def delete_user(user_id: int, **kwargs: dict) -> bool:
     """
     user_handler = UserHandler()
     project_handler = ProjectHandler()
+    log_handler = LogHandler()
     data_security = DataSecurity()
 
     user = user_handler.get_user_by_id(user_id=user_id)
@@ -213,10 +216,16 @@ def delete_user(user_id: int, **kwargs: dict) -> bool:
         return None
 
     # delete all the user's projects before deleting the user
-    [total, projects_list] = project_handler.get_projects_by_field(user_id=user_id)
+    projects_list = project_handler.get_projects_by_field(user_id=user_id)[1]
+
+    # delete all the user's logs before deleting the user
+    logs_list = log_handler.get_logs_by_field(user_id=user_id)[1]
 
     for project in projects_list:
         delete_project(project_id=project.id)
+
+    for log in logs_list:
+        log_handler.delete_log(log_id=log.id)
 
     rabbitmq.delete_user(username=user.account_sid)
     rabbitmq.delete_virtual_host(name=user.account_sid)
