@@ -3,7 +3,7 @@
 import phonenumbers
 from phonenumbers import geocoder, carrier
 
-from src.std_carrier_lib import MCCMNC
+from src.utils.std_carrier_lib import MCCMNC
 
 INVALID_COUNTRY_CODE_EXCEPTION = "INVALID_COUNTRY_CODE"
 
