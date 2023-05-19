@@ -7,12 +7,18 @@
    2. [Authenticate](#authentication)
    3. [Get user](#get-user)
    4. [Update user](#update-user)
+   5. [Delete user](#delete-user)
 2. [Projects](#projects)
    1. [Create a project](#create-a-project)
    2. [List a single project](#list-a-single-project)
-   3. [List all projects](#list-all-projects)
+   3. [Update a single](#update-a-single-project)
+   4. [Delete a single](#delete-a-single-project)
+   5. [List all projects](#list-all-projects)
 3. [Publications](#publications)
    1. [Publish](#publish)
+4. [Logs](#logs)
+   1. [List all Logs](#list-all-logs)
+   2. [Delete Log Entry](#delete-log-entry)
 
 ---
 
@@ -38,15 +44,19 @@ _**Headers**_
 
 _**Body**_
 
-| Attribute      | Type   | Required | Description                                         |
-| :------------- | :----- | :------- | :-------------------------------------------------- |
-| `email`        | string | Yes      | An active email address for account identification. |
-| `password`     | string | Yes      | A a word, phrase, or string for account security.   |
-| `phone_number` | string | No       | An active phone number for extra account security.  |
-| `name`         | string | No       | A name for account personalization.                 |
+| Attribute            | Type   | Required | Description                                                                                            |
+| :------------------- | :----- | :------- | :----------------------------------------------------------------------------------------------------- |
+| `email`              | string | Yes      | An active email address for account identification.                                                    |
+| `password`           | string | Yes      | A a word, phrase, or string for account security.                                                      |
+| `phone_number`       | string | No       | An active phone number for extra account security.                                                     |
+| `first_name`         | string | No       | A first_name for account personalization.                                                              |
+| `last_name`          | string | No       | A last_name for account personalization.                                                               |
+| `twilio_account_sid` | string | No       | [Twilio account_sid](https://www.twilio.com/blog/better-twilio-authentication-csharp-twilio-api-keys). |
+| `twilio_auth_token`  | string | No       | [Twilio auth_token](https://www.twilio.com/blog/better-twilio-authentication-csharp-twilio-api-keys).  |
+| `twilio_service_sid` | string | No       | [Twilio messaging service_sid](https://www.twilio.com/docs/glossary/what-is-a-sid)                     |
 
 ```shell
-curl --location 'https://staging.smswithoutborders.com:12000/v1/signup' --header 'Content-Type: application/json' --data-raw '{"email": "", "password": "", "name": "", "phone_number": ""}'
+curl --location 'https://staging.smswithoutborders.com:12000/v1/signup' --header 'Content-Type: application/json' --data-raw '{"email": "", "password": "", "first_name": "", "last_name": "", "phone_number": "", "twilio_account_sid": "", "twilio_auth_token": "", "twilio_service_sid": ""}'
 ```
 
 Example response:
@@ -164,7 +174,8 @@ Raised when request completed successfully.
 	"created_at": "",
 	"email": "",
 	"id": "",
-	"name": "",
+	"first_name": "",
+	"last_name": "",
 	"phone_number": "",
 	"twilio_account_sid": "",
 	"twilio_auth_token": "",
@@ -207,14 +218,17 @@ _**Body**_
 
 | Attribute            | Type   | Required | Description                                                                                            |
 | :------------------- | :----- | :------- | :----------------------------------------------------------------------------------------------------- |
-| `name`               | string | No       | A name for account personalization.                                                                    |
+| `first_name`         | string | No       | A first_name for account personalization.                                                              |
+| `last_name`          | string | No       | A last_name for account personalization.                                                               |
 | `phone_number`       | string | No       | An active phone number for extra account security.                                                     |
+| `password`           | string | No       | Current user's password.                                                                               |
+| `new_password`       | string | No       | A new secure password.                                                                                 |
 | `twilio_account_sid` | string | No       | [Twilio account_sid](https://www.twilio.com/blog/better-twilio-authentication-csharp-twilio-api-keys). |
 | `twilio_auth_token`  | string | No       | [Twilio auth_token](https://www.twilio.com/blog/better-twilio-authentication-csharp-twilio-api-keys).  |
 | `twilio_service_sid` | string | No       | [Twilio messaging service_sid](https://www.twilio.com/docs/glossary/what-is-a-sid)                     |
 
 ```shell
-curl --location --request PUT 'https://staging.smswithoutborders.com:12000/v1/' --header 'Content-Type: application/json' --data-raw '{"name": "", "phone_number": "", "twilio_account_sid": "", "twilio_auth_token": "", "twilio_service_sid": ""}'
+curl --location --request PUT 'https://staging.smswithoutborders.com:12000/v1/' --header 'Content-Type: application/json' --data-raw '{"first_name": "", "last_name": "", "phone_number": "", "twilio_account_sid": "", "twilio_auth_token": "", "twilio_service_sid": ""}'
 ```
 
 Example response:
@@ -230,7 +244,8 @@ Raised when request completed successfully.
 	"created_at": "",
 	"email": "",
 	"id": "",
-	"name": "",
+	"first_name": "",
+	"last_name": "",
 	"phone_number": "",
 	"twilio_account_sid": "",
 	"twilio_auth_token": "",
@@ -251,6 +266,46 @@ resource.
 > [409] Conflict
 
 Raised when the requested resource already exist and cannot be duplicated.
+
+> [500] Internal Server Error
+
+Raised when the server encountered an unexpected condition that prevented it
+from fulfilling the request.
+
+### Delete User
+
+> _**[Authentication](#authentication) Required**_
+
+Delete currently authenticated user's account.
+
+```
+DELETE /
+```
+
+_**Headers**_
+
+| Attribute      | Value            | Required | Description                                                                                                              |
+| :------------- | :--------------- | :------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `Content-Type` | application/json | Yes      | Used to indicate the original [media type](https://developer.mozilla.org/en-US/docs/Glossary/MIME_type) of the resource. |
+
+```shell
+curl --location --request DELETE 'https://staging.smswithoutborders.com:12000/v1/' --header 'Content-Type: application/json'
+```
+
+Example response:
+
+> [200] Successful
+
+Raised when the request to delete the user account is completed successfully.
+
+> [401] Unauthorized
+
+Raised when the request lacks valid authentication credentials for the requested
+resource.
+
+> [404] Not Found
+
+Raised when the user account to be deleted is not found.
 
 > [500] Internal Server Error
 
@@ -281,12 +336,13 @@ _**Headers**_
 
 _**Body**_
 
-| Attribute | Type   | Required | Description          |
-| :-------- | :----- | :------- | :------------------- |
-| `name`    | string | Yes      | Unique project name. |
+| Attribute       | Type   | Required | Description                                                                                                           |
+| :-------------- | :----- | :------- | :-------------------------------------------------------------------------------------------------------------------- |
+| `friendly_name` | string | Yes      | The friendly name of the project. It should be unique and provide a descriptive name for the project.                 |
+| `description`   | string | No       | A brief description of the project. This field allows you to provide additional details or context about the project. |
 
 ```shell
-curl --location 'https://staging.smswithoutborders.com:12000/v1/projects' --header 'Content-Type: application/json' --data-raw '{"name": ""}'
+curl --location 'https://staging.smswithoutborders.com:12000/v1/projects' --header 'Content-Type: application/json' --data-raw '{"friendly_name": "", "description": ""}'
 ```
 
 Example response:
@@ -298,7 +354,9 @@ Raised when request completed successfully.
 ```json
 {
 	"id": "",
-	"name": "",
+	"friendly_name": "",
+	"reference": "",
+	"description": "",
 	"created_at": ""
 }
 ```
@@ -329,7 +387,7 @@ from fulfilling the request.
 Details of a single project for the authenticated user.
 
 ```
-GET /
+GET /projects/:project_id
 ```
 
 _**Headers**_
@@ -357,7 +415,9 @@ Raised when request completed successfully.
 ```json
 {
 	"id": "",
-	"name": "",
+	"friendly_name": "",
+	"reference": "",
+	"description": "",
 	"created_at": ""
 }
 ```
@@ -375,6 +435,120 @@ resource.
 > [404] Not Found
 
 Raised when the server cannot find the requested resource.
+
+> [500] Internal Server Error
+
+Raised when the server encountered an unexpected condition that prevented it
+from fulfilling the request.
+
+### Update a single project
+
+> _**[Authentication](#authentication) Required**_
+
+Update details of a single project for the authenticated user.
+
+```
+PUT /projects/:project_id
+```
+
+_**Headers**_
+
+| Attribute      | Value            | Required | Description                                                                                                              |
+| :------------- | :--------------- | :------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `Content-Type` | application/json | Yes      | Used to indicate the original [media type](https://developer.mozilla.org/en-US/docs/Glossary/MIME_type) of the resource. |
+
+_**Params**_
+
+| Attribute    | Type   | Required | Description                                 |
+| :----------- | :----- | :------- | :------------------------------------------ |
+| `project_id` | string | Yes      | A unique string used to identify a project. |
+
+_**Body**_
+
+| Attribute       | Type   | Required | Description                           |
+| :-------------- | :----- | :------- | :------------------------------------ |
+| `friendly_name` | string | No       | Updated friendly name of the project. |
+| `description`   | string | No       | Updated description of the project.   |
+
+```shell
+curl --location --request PUT 'https://staging.smswithoutborders.com:12000/v1/projects/:project_id' --header 'Content-Type: application/json' --data-raw '{"friendly_name": "", "description": ""}'
+```
+
+Example response:
+
+> [200] Successful
+
+Raised when the request to update the project details is completed successfully.
+
+```json
+{
+	"id": "",
+	"friendly_name": "",
+	"reference": "",
+	"description": "",
+	"created_at": ""
+}
+```
+
+> [400] Bad Request
+
+Raised when some attributes are omitted or the request isn't structured
+correctly.
+
+> [401] Unauthorized
+
+Raised when the request lacks valid authentication credentials for the requested
+resource.
+
+> [404] Not Found
+
+Raised when the server cannot find the project to be updated.
+
+> [500] Internal Server Error
+
+Raised when the server encountered an unexpected condition that prevented it
+from fulfilling the request.
+
+### Delete a single project
+
+> _**[Authentication](#authentication) Required**_
+
+Delete a single project for the authenticated user.
+
+```
+DELETE /projects/:project_id
+```
+
+_**Headers**_
+
+| Attribute      | Value            | Required | Description                                                                                                              |
+| :------------- | :--------------- | :------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `Content-Type` | application/json | Yes      | Used to indicate the original [media type](https://developer.mozilla.org/en-US/docs/Glossary/MIME_type) of the resource. |
+
+_**Params**_
+
+| Attribute    | Type   | Required | Description                                 |
+| :----------- | :----- | :------- | :------------------------------------------ |
+| `project_id` | string | Yes      | A unique string used to identify a project. |
+
+```shell
+curl --location --request DELETE 'https://staging.smswithoutborders.com:12000/v1/projects/:project_id' --header 'Content-Type: application/json'
+```
+
+Example response:
+
+> [200] Successful
+
+Raised when the request to delete the project is completed successfully.
+
+> [401] Unauthorized
+
+Raised when the request lacks valid authentication credentials for the requested
+resource.
+
+> [404] Not Found
+
+Raised when the server cannot find the project to be deleted.
 
 > [500] Internal Server Error
 
@@ -411,7 +585,9 @@ Raised when request completed successfully.
 [
 	{
 		"id": "",
-		"name": "",
+		"friendly_name": "",
+		"reference": "",
+		"description": "",
 		"created_at": ""
 	}
 ]
@@ -441,7 +617,7 @@ Publication management resources.
 Make a request to deku server to publish.
 
 ```
-POST /projects/:project_id/services/:service
+POST /projects/:reference/services/:service_id
 ```
 
 _**Headers**_
@@ -455,8 +631,8 @@ _**Params**_
 
 | Attribute    | Type   | Required | Description                                 |
 | :----------- | :----- | :------- | :------------------------------------------ |
-| `project_id` | string | Yes      | A unique string used to identify a project. |
-| `service`    | string | Yes      | a Deku service.                             |
+| `reference`  | string | Yes      | A unique string used to identify a project. |
+| `service_id` | string | Yes      | a Deku service (SMS, NOTIFICATION).         |
 
 _**Body**_
 
@@ -466,7 +642,7 @@ _**Body**_
 | `to`      | string | Yes      | Recipient.                           |
 
 ```shell
-curl --location 'https://staging.smswithoutborders.com:12000/v1/projects/:project_id/services/:service' --header 'Content-Type: application/json' --user "account_sid:auth_token" --data-raw '{"body": "", "to": ""}'
+curl --location 'https://staging.smswithoutborders.com:12000/v1/projects/:reference/services/:service_id' --header 'Content-Type: application/json' --user "account_sid:auth_token" --data-raw '{"body": "", "to": ""}'
 ```
 
 Example response:
@@ -477,15 +653,15 @@ Raised when request completed successfully.
 
 ```json
 {
+	"channel": "",
 	"sid": "",
-	"created_at": "",
+	"from_": "",
 	"direction": "",
 	"status": "",
-	"from": "",
-	"to": "",
-	"channel": "",
-	"body": "",
-	"reason": ""
+	"reason": "",
+	"created_at": "",
+	"to_": "",
+	"body": ""
 }
 ```
 
@@ -498,6 +674,113 @@ correctly.
 
 Raised when the request lacks valid authentication credentials for the requested
 resource.
+
+> [500] Internal Server Error
+
+Raised when the server encountered an unexpected condition that prevented it
+from fulfilling the request.
+
+## Logs
+
+Log management resources.
+
+### List all Logs
+
+> _**[Authentication](#authentication) Required**_
+
+Details of all publication logs for the currently authenticated user.
+
+```
+GET /logs
+```
+
+_**Headers**_
+
+| Attribute      | Value            | Required | Description                                                                                                              |
+| :------------- | :--------------- | :------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `Content-Type` | application/json | Yes      | Used to indicate the original [media type](https://developer.mozilla.org/en-US/docs/Glossary/MIME_type) of the resource. |
+
+```shell
+curl --location 'https://staging.smswithoutborders.com:12000/v1/logs' --header 'Content-Type: application/json'
+```
+
+Example response:
+
+> [200] Successful
+
+Raised when request completed successfully.
+
+```json
+[
+	{
+		"channel": "",
+		"sid": "",
+		"from_": "",
+		"direction": "",
+		"status": "",
+		"reason": "",
+		"created_at": "",
+		"to_": "",
+		"body": ""
+	}
+]
+```
+
+> [400] Bad Request
+
+Raised when some attributes are omitted or the request isn't structured
+correctly.
+
+> [401] Unauthorized
+
+Raised when the request lacks valid authentication credentials for the requested
+resource.
+
+> [500] Internal Server Error
+
+Raised when the server encountered an unexpected condition that prevented it
+from fulfilling the request.
+
+### Delete log entry
+
+> _**[Authentication](#authentication) Required**_
+
+Delete a single log entry for the authenticated user.
+
+```
+DELETE /logs/:log_id
+```
+
+_**Headers**_
+
+| Attribute      | Value            | Required | Description                                                                                                              |
+| :------------- | :--------------- | :------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `Content-Type` | application/json | Yes      | Used to indicate the original [media type](https://developer.mozilla.org/en-US/docs/Glossary/MIME_type) of the resource. |
+
+_**Params**_
+
+| Attribute | Type   | Required | Description                                   |
+| :-------- | :----- | :------- | :-------------------------------------------- |
+| `log_id`  | string | Yes      | A unique string used to identify a log entry. |
+
+```shell
+curl --location --request DELETE 'https://staging.smswithoutborders.com:12000/v1/logs/:log_id' --header 'Content-Type: application/json'
+```
+
+Example response:
+
+> [200] Successful
+
+Raised when the request to delete the log entry is completed successfully.
+
+> [401] Unauthorized
+
+Raised when the request lacks valid authentication credentials for the requested
+resource.
+
+> [404] Not Found
+
+Raised when the log entry to be deleted is not found.
 
 > [500] Internal Server Error
 
