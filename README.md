@@ -1,6 +1,6 @@
 <img src="https://github.com/Afkanerd/Afkanerd-Resources/raw/main/images/Artboard%209.png" align="right" width="350px"/>
 
-# Deku Cloud
+# Deku Cloud BE REST
 
 ## Documentation
 
