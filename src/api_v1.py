@@ -662,7 +662,7 @@ def publish_endpoint(reference: str, service_id: str):
         username = request.authorization.get("username")
         password = request.authorization.get("password")
         body = request.json.get("body")
-        to_ = request.json.get("to")
+        to_ = request.json.get("to").replace(" ", "")
 
         user_handler = UserHandler()
 

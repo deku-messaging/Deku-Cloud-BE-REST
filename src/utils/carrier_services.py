@@ -21,15 +21,19 @@ def get_service_name(
     """
     try:
         if service_id.lower() == "sms":
-            country_name = carrier_information.get_country(phone_number=phone_number)
+            country_dialing_code = carrier_information.get_country_code(
+                phone_number=phone_number
+            )
             carrier_name = carrier_information.get_operator_name(
                 phone_number=phone_number
             )
-            service_name = f"{project_reference}_{country_name}_{carrier_name}"
+            service_name = f"{project_reference}_{country_dialing_code}_{carrier_name}"
 
-        logger.info("Successfully generated service name")
+            logger.info("Successfully generated service name")
 
-        return service_name
+            return service_name
+
+        return None
 
     except Exception as error:
         logger.error("Failed to generate service name for service_id '%s'", service_id)

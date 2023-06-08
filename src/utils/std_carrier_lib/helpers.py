@@ -217,14 +217,49 @@ class CarrierInformation:
                         operator_id = values[0]
                         return str(operator_id)
 
-    def get_country_code(self, operator_code: str) -> str:
-        """requires the first 3 digits"""
-        cm_op_code = int(operator_code[0:3])
+    def get_country_code(
+        self, operator_code: str = None, phone_number: str = None
+    ) -> str:
+        """
+        Retrieves the country code based on the operator code or phone number.
 
-        if cm_op_code in MCCMNC.MCC_dict:
-            operator_details = MCCMNC.MCC_dict[cm_op_code]
+        :param operator_code: (str, optional) - The operator code. Defaults to None.
+        :param phone_number: (str, optional) - The phone number. Defaults to None.
 
-            return str(operator_details[1])
+        :return: str - The country code corresponding to the operator code or phone number.
+        """
+
+        if operator_code:
+            cm_op_code = int(operator_code[0:3])
+
+            if cm_op_code in MCCMNC.MCC_dict:
+                operator_details = MCCMNC.MCC_dict[cm_op_code]
+
+                return str(operator_details[1])
+
+        elif phone_number:
+            try:
+                _number = phonenumbers.parse(phone_number, "en")
+
+                if not phonenumbers.is_valid_number(_number):
+                    raise InvalidPhoneNUmber()
+
+                return _number.country_code
+
+            except phonenumbers.NumberParseException as error:
+                if (
+                    error.error_type
+                    == phonenumbers.NumberParseException.INVALID_COUNTRY_CODE
+                ):
+                    if phone_number[0] == "+" or phone_number[0] == "0":
+                        raise InvalidCountryCode() from error
+
+                    raise MissingCountryCode() from error
+
+                raise error
+
+            except Exception as error:
+                raise error
 
         return ""
 

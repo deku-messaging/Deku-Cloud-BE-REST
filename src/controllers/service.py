@@ -1,6 +1,7 @@
 """Controller Functions for Service Operations"""
 
 import logging
+import phonenumbers
 
 from werkzeug.exceptions import BadRequest
 
@@ -10,149 +11,361 @@ from twilio.base.exceptions import TwilioRestException
 from playhouse.shortcuts import model_to_dict
 
 from src.utils import rabbitmq, carrier_services
+from src.utils.std_carrier_lib.helpers import InvalidPhoneNUmber
 from src.orm.peewee.handlers.log import LogHandler
 
 logger = logging.getLogger(__name__)
 
 
-def publish_to_service(
-    service_id: str,
-    content: str,
-    project_reference: str,
-    user: dict,
-    phone_number: str = None,
-) -> bool:
+def create_log(
+    user_id, service_id, project_reference, status, reason, to_, body, **kwargs
+):
     """
-    Publish content to a service.
+    Create a log entry with the provided information.
 
-    :param service_id: str - The unique identifier for the service.
-    :param project_reference: str - A unique reference for the project.
-    :param content: str - content to be published.
-    :param phone_number: str - The phone number to send the message to (for SMS services only).
-    :param user: dict - The user associated with the request.
-
-    :return: dict - A dictionary representing the log entry for the published content.
+    :param user_id: ID of the user.
+    :param service_id: ID of the service.
+    :param project_reference: Reference to the project.
+    :param status: Status of the log entry.
+    :param reason: Reason for the log entry.
+    :param to_: Recipient of the message.
+    :param body: Body of the message.
+    :param kwargs: Additional keyword arguments for the log entry.
+    :return: The created log entry.
     """
-
     log_handler = LogHandler()
+    log_data = {
+        "user_id": user_id,
+        "service_id": service_id.lower(),
+        "project_reference": project_reference,
+        "status": status,
+        "reason": reason,
+        "to_": to_,
+        "body": body,
+        **kwargs,
+    }
 
-    service_name = carrier_services.get_service_name(
-        service_id=service_id,
+    return model_to_dict(log_handler.create_log(**log_data), recurse=False)
+
+
+def handle_invalid_phone_number(
+    service_id, project_reference, phone_number, content, user
+):
+    """
+    Handle the case of an invalid phone number.
+
+    :param service_id: ID of the service.
+    :param project_reference: Reference to the project.
+    :param phone_number: Invalid phone number.
+    :param content: Content of the message.
+    :param user: User information.
+    :raises: InvalidPhoneNumber
+    """
+    error_message = f"Invalid phone number: '{phone_number}'"
+    create_log(
+        user_id=user.get("id"),
+        service_id=service_id.lower(),
         project_reference=project_reference,
-        phone_number=phone_number,
+        status="failed",
+        reason=error_message,
+        to_=phone_number,
+        body=content,
+    )
+    raise InvalidPhoneNUmber(error_message)
+
+
+def handle_number_parse_exception(
+    service_id, project_reference, phone_number, content, user, error
+):
+    """
+    Handle a number parse exception.
+
+    :param service_id: ID of the service.
+    :param project_reference: Reference to the project.
+    :param phone_number: Phone number that caused the exception.
+    :param content: Content of the message.
+    :param user: User information.
+    :param error: Number parse exception object.
+    """
+    error_message = str(error)
+    create_log(
+        user_id=user.get("id"),
+        service_id=service_id.lower(),
+        project_reference=project_reference,
+        status="failed",
+        reason=error_message,
+        to_=phone_number,
+        body=content,
+    )
+    raise phonenumbers.NumberParseException(error_message)
+
+
+def handle_no_client_exception(
+    service_name, service_id, project_reference, content, phone_number, user
+):
+    """
+    Handle the case where no client is available for the service.
+
+    :param service_name: Name of the service.
+    :param service_id: ID of the service.
+    :param project_reference: Reference to the project.
+    :param content: Content of the message.
+    :param phone_number: Recipient's phone number.
+    :param user: User information.
+    :return: The created log entry.
+    """
+    log_data = {
+        "service_name": service_name,
+        "direction": "outbound-api",
+        "status": "failed",
+        "reason": "No available channel. Start a Deku SMS client or provide your Twilio messaging credentials.",
+        "to_": phone_number,
+        "body": content,
+    }
+
+    return create_log(
+        user_id=user.get("id"),
+        service_id=service_id.lower(),
+        project_reference=project_reference,
+        **log_data,
     )
 
+
+def handle_twilio_rest_exception(
+    service_id, project_reference, content, phone_number, user, error
+):
+    """
+    Handle a TwilioRestException.
+
+    :param service_id: ID of the service.
+    :param project_reference: Reference to the project.
+    :param content: Content of the message.
+    :param phone_number: Phone number associated with the exception.
+    :param user: User information.
+    :param error: TwilioRestException object.
+    :raises: TwilioRestException
+    """
+
+    logger.error("Failed to publish with Twilio client")
+    log_data = {
+        "channel": "twilio",
+        "status": "failed",
+        "reason": error.msg,
+        "to_": phone_number,
+        "body": content,
+    }
+    create_log(
+        user_id=user.get("id"),
+        service_id=service_id.lower(),
+        project_reference=project_reference,
+        **log_data,
+    )
+
+    raise error
+
+
+def handle_generic_exception(
+    service_id, project_reference, phone_number, content, user, error
+):
+    """
+    Handle a generic exception.
+
+    :param service_id: ID of the service.
+    :param project_reference: Reference to the project.
+    :param phone_number: Phone number associated with the exception.
+    :param content: Content of the message.
+    :param user: User information.
+    :param error: The exception object.
+    """
+    error_message = "Oops! Something went wrong. Please try again. If the issue persists, please contact the developers."
+    create_log(
+        user_id=user.get("id"),
+        service_id=service_id.lower(),
+        project_reference=project_reference,
+        status="failed",
+        reason=error_message,
+        to_=phone_number,
+        body=content,
+    )
+    raise error
+
+
+def publish_with_twilio(
+    twilio_client, service_id, project_reference, content, phone_number, user
+):
+    """
+    Publish a message using the Twilio client.
+
+    :param twilio_client: Twilio client object.
+    :param service_id: ID of the service.
+    :param project_reference: Reference to the project.
+    :param content: Content of the message.
+    :param phone_number: Recipient's phone number.
+    :param user: User information.
+    :return: The created log entry.
+    :raises: TwilioRestException
+    """
+    message = twilio_client.messages.create(
+        body=content,
+        messaging_service_sid=user.get("twilio_service_sid"),
+        to=phone_number,
+    )
+    logger.info("Successfully published with Twilio client")
+    log_data = {
+        "channel": "twilio",
+        "sid": message.sid,
+        "from_": message.from_,
+        "direction": message.direction,
+        "status": message.status,
+        "reason": message.error_message,
+        "created_at": message.date_created,
+        "to_": message.to,
+        "body": message.body,
+    }
+
+    return create_log(
+        user_id=user.get("id"),
+        service_id=service_id.lower(),
+        project_reference=project_reference,
+        **log_data,
+    )
+
+
+def publish_with_deku_client(
+    service_name, service_id, project_reference, content, phone_number, user
+):
+    """
+    Publish a message using the Deku client.
+
+    :param service_name: Name of the Deku service.
+    :param service_id: ID of the service.
+    :param project_reference: Reference to the project.
+    :param content: Content of the message.
+    :param phone_number: Recipient's phone number.
+    :param user: User information.
+    :return: The created log entry.
+    """
+    body = {"text": content, "number": phone_number}
+    rabbitmq.publish_to_exchange(
+        body=body,
+        routing_key=service_name,
+        exchange=project_reference,
+        virtual_host=user.get("account_sid"),
+    )
+    logger.info("Successfully published with Deku client")
+    log_data = {
+        "channel": "deku_client",
+        "service_name": service_name,
+        "direction": "outbound-api",
+        "status": "requested",
+        "to_": phone_number,
+        "body": content,
+    }
+
+    return create_log(
+        user_id=user.get("id"),
+        service_id=service_id.lower(),
+        project_reference=project_reference,
+        **log_data,
+    )
+
+
+def publish_to_service(service_id, content, project_reference, user, phone_number=None):
+    """
+    Publish a message to the specified service.
+
+    :param service_id: ID of the service.
+    :param content: Content of the message.
+    :param project_reference: Reference to the project.
+    :param user: User information.
+    :param phone_number: Recipient's phone number.
+    :return: The created log entry.
+    :raises: InvalidPhoneNumber, NumberParseException, BadRequest, Exception
+    """
     twilio_account_sid = user.get("twilio_account_sid")
-    twilio_service_sid = user.get("twilio_service_sid")
     twilio_auth_token = user.get("twilio_auth_token")
     account_sid = user.get("account_sid")
-    user_id = user.get("id")
 
-    has_twilio = all((twilio_account_sid, twilio_service_sid, twilio_auth_token))
+    has_twilio = all((twilio_account_sid, twilio_auth_token))
 
-    if service_id.lower() == "sms":
-        if not rabbitmq.get_queue_by_name(name=service_name, virtual_host=account_sid):
-            if has_twilio:
-                twilio_client = Twilio(
-                    username=twilio_account_sid, password=twilio_auth_token
-                )
+    try:
+        service_name = carrier_services.get_service_name(
+            service_id=service_id,
+            project_reference=project_reference,
+            phone_number=phone_number,
+        )
 
-                try:
-                    message = twilio_client.messages.create(
-                        body=content,
-                        messaging_service_sid=twilio_service_sid,
-                        to=phone_number,
+        if service_name:
+            if not rabbitmq.get_queue_by_name(
+                name=service_name, virtual_host=account_sid
+            ):
+                if has_twilio:
+                    twilio_client = Twilio(
+                        username=twilio_account_sid, password=twilio_auth_token
                     )
-                except TwilioRestException as error:
-                    logger.error("Failed publised with twilio client")
-
-                    log_data = {
-                        "channel": "twilio",
-                        "status": "failed",
-                        "reason": error.msg,
-                        "to_": phone_number,
-                        "body": content,
-                    }
-
-                    new_log = log_handler.create_log(
-                        user_id=user_id,
-                        service_id=service_id.lower(),
+                    return publish_with_twilio(
+                        twilio_client=twilio_client,
+                        service_id=service_id,
                         project_reference=project_reference,
-                        **log_data,
+                        content=content,
+                        phone_number=phone_number,
+                        user=user,
                     )
 
-                    raise error
-
-                logger.info("Successfully publised with twilio client")
-
-                log_data = {
-                    "channel": "twilio",
-                    "sid": message.sid,
-                    "from_": message.from_,
-                    "direction": message.direction,
-                    "status": message.status,
-                    "reason": message.error_message,
-                    "created_at": message.date_created,
-                    "to_": message.to,
-                    "body": message.body,
-                }
-
-                new_log = log_handler.create_log(
-                    user_id=user_id,
-                    service_id=service_id.lower(),
+                logger.info("Failed to publish SMS")
+                return handle_no_client_exception(
+                    service_name=service_name,
+                    service_id=service_id,
                     project_reference=project_reference,
-                    **log_data,
+                    content=content,
+                    phone_number=phone_number,
+                    user=user,
                 )
 
-            else:
-                logger.info("Failed to publish sms")
-
-                log_data = {
-                    "service_name": service_name,
-                    "direction": "outbound-api",
-                    "status": "failed",
-                    "reason": "No available channel. Start a Deku SMS client or provide your Twilio messaging credentials.",
-                    "to_": phone_number,
-                    "body": content,
-                }
-
-                new_log = log_handler.create_log(
-                    user_id=user_id,
-                    service_id=service_id.lower(),
-                    project_reference=project_reference,
-                    **log_data,
-                )
-
-        else:
-            body = {"text": content, "number": phone_number}
-
-            rabbitmq.publish_to_exchange(
-                body=body,
-                routing_key=service_name,
-                exchange=project_reference,
-                virtual_host=account_sid,
-            )
-
-            logger.info("Successfully publised with deku client")
-
-            log_data = {
-                "channel": "deku_client",
-                "service_name": service_name,
-                "direction": "outbound-api",
-                "status": "requested",
-                "to_": phone_number,
-                "body": content,
-            }
-
-            new_log = log_handler.create_log(
-                user_id=user_id,
-                service_id=service_id.lower(),
+            return publish_with_deku_client(
+                service_name=service_name,
+                service_id=service_id,
                 project_reference=project_reference,
-                **log_data,
+                content=content,
+                phone_number=phone_number,
+                user=user,
             )
 
-        return model_to_dict(new_log, recurse=False)
+        logger.error("Unsupported service_id '%s'", service_id)
+        raise BadRequest(f"Unsupported service_id {service_id}")
 
-    error_message = f"Unsupported service_id '{service_id}'"
-    logger.error(error_message)
-    raise BadRequest(error_message)
+    except InvalidPhoneNUmber:
+        handle_invalid_phone_number(
+            service_id=service_id,
+            project_reference=project_reference,
+            phone_number=phone_number,
+            content=content,
+            user=user,
+        )
+    except phonenumbers.NumberParseException as error:
+        handle_number_parse_exception(
+            service_id=service_id,
+            project_reference=project_reference,
+            phone_number=phone_number,
+            content=content,
+            user=user,
+            error=error,
+        )
+    except TwilioRestException as error:
+        handle_twilio_rest_exception(
+            service_id=service_id,
+            project_reference=project_reference,
+            phone_number=phone_number,
+            content=content,
+            user=user,
+            error=error,
+        )
+    except (Exception, BadRequest) as error:
+        handle_generic_exception(
+            service_id=service_id,
+            project_reference=project_reference,
+            phone_number=phone_number,
+            content=content,
+            user=user,
+            error=error,
+        )
