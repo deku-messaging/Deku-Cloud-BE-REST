@@ -1,6 +1,8 @@
 """Controller Functions for Service Operations"""
 
 import logging
+from uuid import uuid4
+
 import phonenumbers
 
 from werkzeug.exceptions import BadRequest
@@ -43,6 +45,7 @@ def handle_invalid_phone_number(
     :raises: InvalidPhoneNumber
     """
     error_message = f"Invalid phone number: '{phone_number}'"
+
     create_log(
         user_id=user.get("id"),
         service_id=service_id.lower(),
@@ -52,6 +55,7 @@ def handle_invalid_phone_number(
         to_=phone_number,
         body=content,
     )
+
     raise InvalidPhoneNUmber(error_message)
 
 
@@ -69,6 +73,7 @@ def handle_number_parse_exception(
     :param error: Number parse exception object.
     """
     error_message = str(error)
+
     create_log(
         user_id=user.get("id"),
         service_id=service_id.lower(),
@@ -78,7 +83,8 @@ def handle_number_parse_exception(
         to_=phone_number,
         body=content,
     )
-    raise phonenumbers.NumberParseException(error_message)
+
+    raise error
 
 
 def handle_no_client_exception(
@@ -219,7 +225,10 @@ def publish_with_deku_client(
     :param user: User information.
     :return: The created log entry.
     """
-    body = {"text": content, "number": phone_number}
+
+    sid = uuid4().hex.upper()
+
+    body = {"text": content, "to": phone_number, "id": sid}
 
     rabbitmq.publish_to_exchange(
         body=body,
@@ -235,6 +244,7 @@ def publish_with_deku_client(
         service_id=service_id.lower(),
         project_reference=project_reference,
         channel="deku_client",
+        sid=sid,
         service_name=service_name,
         direction="outbound-api",
         status="requested",
