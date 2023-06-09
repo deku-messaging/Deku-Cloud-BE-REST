@@ -17,35 +17,16 @@ from src.orm.peewee.handlers.log import LogHandler
 logger = logging.getLogger(__name__)
 
 
-def create_log(
-    user_id, service_id, project_reference, status, reason, to_, body, **kwargs
-):
+def create_log(**kwargs):
     """
     Create a log entry with the provided information.
 
-    :param user_id: ID of the user.
-    :param service_id: ID of the service.
-    :param project_reference: Reference to the project.
-    :param status: Status of the log entry.
-    :param reason: Reason for the log entry.
-    :param to_: Recipient of the message.
-    :param body: Body of the message.
-    :param kwargs: Additional keyword arguments for the log entry.
+    :param kwargs: Keyword arguments for the log entry.
     :return: The created log entry.
     """
     log_handler = LogHandler()
-    log_data = {
-        "user_id": user_id,
-        "service_id": service_id.lower(),
-        "project_reference": project_reference,
-        "status": status,
-        "reason": reason,
-        "to_": to_,
-        "body": body,
-        **kwargs,
-    }
 
-    return model_to_dict(log_handler.create_log(**log_data), recurse=False)
+    return model_to_dict(log_handler.create_log(**kwargs), recurse=False)
 
 
 def handle_invalid_phone_number(
@@ -114,20 +95,17 @@ def handle_no_client_exception(
     :param user: User information.
     :return: The created log entry.
     """
-    log_data = {
-        "service_name": service_name,
-        "direction": "outbound-api",
-        "status": "failed",
-        "reason": "No available channel. Start a Deku SMS client or provide your Twilio messaging credentials.",
-        "to_": phone_number,
-        "body": content,
-    }
 
     return create_log(
         user_id=user.get("id"),
         service_id=service_id.lower(),
         project_reference=project_reference,
-        **log_data,
+        service_name=service_name,
+        direction="outbound-api",
+        status="failed",
+        reason="No available channel. Start a Deku SMS client or provide your Twilio messaging credentials.",
+        to_=phone_number,
+        body=content,
     )
 
 
@@ -147,18 +125,16 @@ def handle_twilio_rest_exception(
     """
 
     logger.error("Failed to publish with Twilio client")
-    log_data = {
-        "channel": "twilio",
-        "status": "failed",
-        "reason": error.msg,
-        "to_": phone_number,
-        "body": content,
-    }
+
     create_log(
         user_id=user.get("id"),
         service_id=service_id.lower(),
         project_reference=project_reference,
-        **log_data,
+        channel="twilio",
+        status="failed",
+        reason=error.msg,
+        to_=phone_number,
+        body=content,
     )
 
     raise error
@@ -210,24 +186,22 @@ def publish_with_twilio(
         messaging_service_sid=user.get("twilio_service_sid"),
         to=phone_number,
     )
+
     logger.info("Successfully published with Twilio client")
-    log_data = {
-        "channel": "twilio",
-        "sid": message.sid,
-        "from_": message.from_,
-        "direction": message.direction,
-        "status": message.status,
-        "reason": message.error_message,
-        "created_at": message.date_created,
-        "to_": message.to,
-        "body": message.body,
-    }
 
     return create_log(
         user_id=user.get("id"),
         service_id=service_id.lower(),
         project_reference=project_reference,
-        **log_data,
+        channel="twilio",
+        sid=message.sid,
+        from_=message.from_,
+        direction=message.direction,
+        status=message.status,
+        reason=message.error_message,
+        created_at=message.date_created,
+        to_=message.to,
+        body=message.body,
     )
 
 
@@ -246,27 +220,26 @@ def publish_with_deku_client(
     :return: The created log entry.
     """
     body = {"text": content, "number": phone_number}
+
     rabbitmq.publish_to_exchange(
         body=body,
         routing_key=service_name,
         exchange=project_reference,
         virtual_host=user.get("account_sid"),
     )
+
     logger.info("Successfully published with Deku client")
-    log_data = {
-        "channel": "deku_client",
-        "service_name": service_name,
-        "direction": "outbound-api",
-        "status": "requested",
-        "to_": phone_number,
-        "body": content,
-    }
 
     return create_log(
         user_id=user.get("id"),
         service_id=service_id.lower(),
         project_reference=project_reference,
-        **log_data,
+        channel="deku_client",
+        service_name=service_name,
+        direction="outbound-api",
+        status="requested",
+        to_=phone_number,
+        body=content,
     )
 
 
