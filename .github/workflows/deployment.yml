@@ -2,7 +2,7 @@ name: Deploy Deku Cloud Back-end REST on Server
 on:
   push:
     branches:
-      - main
+      - staging
 jobs:
   deploy:
     name: Execute Deployment Script on Server
