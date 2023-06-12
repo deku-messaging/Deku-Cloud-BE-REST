@@ -228,7 +228,7 @@ def publish_with_deku_client(
 
     sid = uuid4().hex.upper()
 
-    body = {"body": content, "to": phone_number, "id": sid}
+    body = {"text": content, "to": phone_number, "id": sid}
 
     rabbitmq.publish_to_exchange(
         body=body,
