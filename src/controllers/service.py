@@ -1,7 +1,8 @@
 """Controller Functions for Service Operations"""
 
 import logging
-from uuid import uuid4
+import datetime
+import random
 
 import phonenumbers
 
@@ -226,7 +227,9 @@ def publish_with_deku_client(
     :return: The created log entry.
     """
 
-    sid = uuid4().hex.upper()
+    now = datetime.datetime.now()
+    random.seed(now)
+    sid = random.randint(1, 1000000)
 
     body = {"text": content, "to": phone_number, "id": sid}
 

@@ -319,7 +319,7 @@ def publish_to_exchange(
                 routing_key=routing_key,
                 body=json.dumps(body),
                 properties=pika.BasicProperties(
-                    delivery_mode=2, headers=""
+                    delivery_mode=2
                 ),  # make message persistent
             )
 
