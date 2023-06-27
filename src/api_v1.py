@@ -3,8 +3,10 @@
 import logging
 import json
 from datetime import timedelta
+import csv
+import threading
 
-from flask import request, Blueprint, Response, jsonify
+from flask import request, Blueprint, Response, jsonify, after_this_request
 from playhouse.shortcuts import model_to_dict
 
 from werkzeug.exceptions import (
@@ -634,6 +636,8 @@ def single_log_endpoint(log_id):
 def publish_endpoint(reference: str, service_id: str):
     """Publish Endpoint"""
 
+    errors = []
+
     try:
         if not request.authorization:
             logger.error("No Authorization header")
@@ -651,18 +655,51 @@ def publish_endpoint(reference: str, service_id: str):
             logger.error("Invalid service: %s", service_id)
             raise BadRequest()
 
-        if not request.json.get("body"):
-            logger.error("No body")
-            raise BadRequest()
-
-        if not request.json.get("to"):
-            logger.error("No contact to send to")
-            raise BadRequest()
-
         username = request.authorization.get("username")
         password = request.authorization.get("password")
-        body = request.json.get("body")
-        to_ = request.json.get("to").replace(" ", "")
+
+        # Handle JSON payload
+        payload = []
+
+        if request.is_json:
+            json_data = request.get_json()
+
+            if isinstance(json_data, list):
+                for item in json_data:
+                    if "body" in item and "to" in item:
+                        payload.append({"body": item["body"], "to": item["to"]})
+                    else:
+                        errors.append(f"Invalid JSON object format: {item}")
+            elif isinstance(json_data, dict):
+                if "body" in json_data and "to" in json_data:
+                    payload.append({"body": json_data["body"], "to": json_data["to"]})
+                else:
+                    errors.append(f"Invalid JSON object format: {json_data}")
+            else:
+                errors.append(f"Invalid JSON payload format: {json_data}")
+
+        # Handle uploaded CSV file
+        if "file" in request.files:
+            file = request.files["file"]
+
+            if file and file.filename.endswith(".csv"):
+                csv_data = csv.DictReader(file.read().decode("utf-8").splitlines())
+
+                for row in csv_data:
+                    if "body" in row and "to" in row:
+                        payload.append({"body": row["body"], "to": row["to"]})
+                    else:
+                        errors.append(f"Invalid CSV row format: {row}")
+            else:
+                errors.append("Invalid file format or no file uploaded")
+
+        if not payload:
+            error_message = {
+                "message": "No valid payload found. Please either upload a valid CSV file or populate the request body.",
+                "errors": errors,
+            }
+
+            return jsonify(error_message), 200
 
         user_handler = UserHandler()
 
@@ -685,17 +722,26 @@ def publish_endpoint(reference: str, service_id: str):
             logger.error(err_message)
             raise NotFound(err_message)
 
-        message = service.publish_to_service(
-            service_id=service_id,
-            content=body,
-            project_reference=reference,
-            phone_number=to_,
-            user=current_user,
-        )
+        def send_messages():
+            for item in payload:
+                service.publish_to_service(
+                    service_id=service_id,
+                    content=item["body"],
+                    project_reference=reference,
+                    phone_number=item["to"].replace(" ", ""),
+                    user=current_user,
+                )
 
-        res = jsonify(message)
+        @after_this_request
+        def send_messages_after_request(response):
+            # Start a new thread to send messages
+            thread = threading.Thread(target=send_messages)
+            thread.start()
+            return response
 
-        return res, 200
+        res = {"message": "Messages sent successfully", "errors": errors}
+
+        return jsonify(res), 200
 
     except BadRequest as err:
         return str(err), 400
