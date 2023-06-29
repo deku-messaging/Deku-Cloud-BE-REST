@@ -1,8 +1,6 @@
 """Controller Functions for Service Operations"""
 
 import logging
-import datetime
-import random
 
 import phonenumbers
 
@@ -32,16 +30,13 @@ def create_log(**kwargs):
     return model_to_dict(log_handler.create_log(**kwargs), recurse=False)
 
 
-def handle_invalid_phone_number(
-    service_id, project_reference, phone_number, content, user
-):
+def handle_invalid_phone_number(service_id, project_reference, phone_number, user):
     """
     Handle the case of an invalid phone number.
 
     :param service_id: ID of the service.
     :param project_reference: Reference to the project.
     :param phone_number: Invalid phone number.
-    :param content: Content of the message.
     :param user: User information.
     :raises: InvalidPhoneNumber
     """
@@ -54,14 +49,13 @@ def handle_invalid_phone_number(
         status="failed",
         reason=error_message,
         to_=phone_number,
-        body=content,
     )
 
     raise InvalidPhoneNUmber(error_message)
 
 
 def handle_number_parse_exception(
-    service_id, project_reference, phone_number, content, user, error
+    service_id, project_reference, phone_number, user, error
 ):
     """
     Handle a number parse exception.
@@ -69,7 +63,6 @@ def handle_number_parse_exception(
     :param service_id: ID of the service.
     :param project_reference: Reference to the project.
     :param phone_number: Phone number that caused the exception.
-    :param content: Content of the message.
     :param user: User information.
     :param error: Number parse exception object.
     """
@@ -82,14 +75,13 @@ def handle_number_parse_exception(
         status="failed",
         reason=error_message,
         to_=phone_number,
-        body=content,
     )
 
     raise error
 
 
 def handle_no_client_exception(
-    service_name, service_id, project_reference, content, phone_number, user
+    service_name, service_id, project_reference, phone_number, user
 ):
     """
     Handle the case where no client is available for the service.
@@ -97,7 +89,6 @@ def handle_no_client_exception(
     :param service_name: Name of the service.
     :param service_id: ID of the service.
     :param project_reference: Reference to the project.
-    :param content: Content of the message.
     :param phone_number: Recipient's phone number.
     :param user: User information.
     :return: The created log entry.
@@ -112,19 +103,17 @@ def handle_no_client_exception(
         status="failed",
         reason="No available channel. Start a Deku SMS client or provide your Twilio messaging credentials.",
         to_=phone_number,
-        body=content,
     )
 
 
 def handle_twilio_rest_exception(
-    service_id, project_reference, content, phone_number, user, error
+    service_id, project_reference, phone_number, user, error
 ):
     """
     Handle a TwilioRestException.
 
     :param service_id: ID of the service.
     :param project_reference: Reference to the project.
-    :param content: Content of the message.
     :param phone_number: Phone number associated with the exception.
     :param user: User information.
     :param error: TwilioRestException object.
@@ -141,22 +130,18 @@ def handle_twilio_rest_exception(
         status="failed",
         reason=error.msg,
         to_=phone_number,
-        body=content,
     )
 
     raise error
 
 
-def handle_generic_exception(
-    service_id, project_reference, phone_number, content, user, error
-):
+def handle_generic_exception(service_id, project_reference, phone_number, user, error):
     """
     Handle a generic exception.
 
     :param service_id: ID of the service.
     :param project_reference: Reference to the project.
     :param phone_number: Phone number associated with the exception.
-    :param content: Content of the message.
     :param user: User information.
     :param error: The exception object.
     """
@@ -168,7 +153,6 @@ def handle_generic_exception(
         status="failed",
         reason=error_message,
         to_=phone_number,
-        body=content,
     )
     raise error
 
@@ -227,33 +211,38 @@ def publish_with_deku_client(
     :return: The created log entry.
     """
 
-    now = datetime.datetime.now()
-    random.seed(now)
-    sid = random.randint(1, 1000000)
+    log_handler = LogHandler()
 
-    body = {"text": content, "to": phone_number, "id": sid}
-
-    rabbitmq.publish_to_exchange(
-        body=body,
-        routing_key=service_name.replace("_", "."),
-        exchange=project_reference,
-        virtual_host=user.get("account_sid"),
-    )
-
-    logger.info("Successfully published with Deku client")
-
-    return create_log(
+    new_log = log_handler.create_log(
         user_id=user.get("id"),
         service_id=service_id.lower(),
         project_reference=project_reference,
         channel="deku_client",
-        sid=sid,
         service_name=service_name,
         direction="outbound-api",
-        status="requested",
+        status="",
         to_=phone_number,
-        body=content,
     )
+
+    body = {"text": content, "to": phone_number, "id": new_log.id}
+
+    try:
+        rabbitmq.publish_to_exchange(
+            body=body,
+            routing_key=service_name.replace("_", "."),
+            exchange=project_reference,
+            virtual_host=user.get("account_sid"),
+        )
+    except Exception:
+        new_log.delete_instance()
+        raise
+
+    logger.info("Successfully published with Deku client")
+
+    new_log.status = "requested"
+    new_log.save()
+
+    return model_to_dict(new_log, recurse=False)
 
 
 def publish_to_service(service_id, content, project_reference, user, phone_number=None):
@@ -303,7 +292,6 @@ def publish_to_service(service_id, content, project_reference, user, phone_numbe
                     service_name=service_name,
                     service_id=service_id,
                     project_reference=project_reference,
-                    content=content,
                     phone_number=phone_number,
                     user=user,
                 )
@@ -325,7 +313,6 @@ def publish_to_service(service_id, content, project_reference, user, phone_numbe
             service_id=service_id,
             project_reference=project_reference,
             phone_number=phone_number,
-            content=content,
             user=user,
         )
     except phonenumbers.NumberParseException as error:
@@ -333,7 +320,6 @@ def publish_to_service(service_id, content, project_reference, user, phone_numbe
             service_id=service_id,
             project_reference=project_reference,
             phone_number=phone_number,
-            content=content,
             user=user,
             error=error,
         )
@@ -342,7 +328,6 @@ def publish_to_service(service_id, content, project_reference, user, phone_numbe
             service_id=service_id,
             project_reference=project_reference,
             phone_number=phone_number,
-            content=content,
             user=user,
             error=error,
         )
@@ -351,7 +336,6 @@ def publish_to_service(service_id, content, project_reference, user, phone_numbe
             service_id=service_id,
             project_reference=project_reference,
             phone_number=phone_number,
-            content=content,
             user=user,
             error=error,
         )

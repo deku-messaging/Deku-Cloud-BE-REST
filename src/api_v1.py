@@ -465,7 +465,7 @@ def single_project_endpoint(project_id):
         return "Internal Server Error", 500
 
 
-@v1.route("/logs", methods=["GET", "DELETE"])
+@v1.route("/logs", methods=["GET"])
 def log_endpoint():
     """Manage Logs"""
 
@@ -519,16 +519,6 @@ def log_endpoint():
                 ] = f"rows {input_data['data_range'][0]}-{input_data['data_range'][1]}/{total}"
                 res.headers["Access-Control-Expose-Headers"] = "Content-Range"
 
-        if method == "delete":
-            filters_ = json.loads(request.args.get("filter"))
-
-            if isinstance(filters_.get("id"), list):
-                for log_id in filters_["id"]:
-                    if not log_handler.delete_log(log_id=log_id):
-                        logger.error("Log with ID '%s' not found", log_id)
-
-            res = jsonify(filters_["id"])
-
         session = session_handler.update_session(session_id=sid)
 
         session_data = json.loads(session.data)
@@ -562,7 +552,7 @@ def log_endpoint():
         return "Internal Server Error", 500
 
 
-@v1.route("/logs/<string:log_id>", methods=["DELETE"])
+@v1.route("/logs/<string:log_id>", methods=["PUT"])
 def single_log_endpoint(log_id):
     """Single Log Endpoint"""
 
@@ -591,8 +581,14 @@ def single_log_endpoint(log_id):
         if not session:
             raise Unauthorized()
 
-        if method == "delete":
-            if not log_handler.delete_log(log_id=log_id):
+        if method == "put":
+            status = request.json.get("status")
+
+            if status.lower() not in ["delivered", "failed"]:
+                logger.error("Invalid log status: %s", status)
+                raise BadRequest(f"Invalid log status: {status}")
+
+            if not log_handler.update_log(log_id=log_id, status=status):
                 raise NotFound(f"Log with ID '{log_id}' not found")
 
             current_log = ""
