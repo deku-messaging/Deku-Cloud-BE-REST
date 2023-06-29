@@ -94,7 +94,7 @@ class ProjectHandler:
                     where_fields += (Project.user_id == value,)
                     continue
 
-                if field == "friendly_name":
+                if field in ["friendly_name", "reference"]:
                     where_fields += (getattr(Project, field).contains(value),)
                     continue
 
