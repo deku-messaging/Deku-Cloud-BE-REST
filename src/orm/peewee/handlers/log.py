@@ -82,11 +82,11 @@ class LogHandler:
             logs = Log.select()
 
             for field, value in kwargs.items():
-                if field == "user_id":
-                    where_fields += (Log.user_id == value,)
+                if field == "id":
+                    where_fields += (Log.id == value,)
                     continue
 
-                if field == "friendly_name":
+                if field == "to":
                     where_fields += (getattr(Log, field).contains(value),)
                     continue
 
