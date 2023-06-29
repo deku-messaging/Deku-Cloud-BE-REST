@@ -706,9 +706,12 @@ _**Params**_
 
 _**Form**_
 
-| Key    | Type | Value                                                  |
-| :----- | :--- | :----------------------------------------------------- |
-| `file` | File | Path to file to be uploaded. e.g "/path/to/sample.csv" |
+| Attribute     | Type   | Required | Description                                      |
+| :------------ | :----- | :------- | :----------------------------------------------- |
+| `key`         | string | Yes      | Key of the form field. (Requires "file")         |
+| `type`        | string | Yes      | Type of the form field. (Requires "File")        |
+| `value`       | string | Yes      | Value of the form field. (Requires path to file) |
+| `description` | string | No       | Description of the form field                    |
 
 ```shell
 curl --location 'https://staging.smswithoutborders.com:12000/v1/projects/:reference/services/:service_id' --user "account_sid:auth_token" --form 'file=@"/path/to/sample.csv"'
