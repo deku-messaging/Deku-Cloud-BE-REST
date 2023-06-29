@@ -637,6 +637,7 @@ def publish_endpoint(reference: str, service_id: str):
     """Publish Endpoint"""
 
     errors = []
+    warnings = []
 
     try:
         if not request.authorization:
@@ -685,21 +686,20 @@ def publish_endpoint(reference: str, service_id: str):
             if file and file.filename.endswith(".csv"):
                 csv_data = csv.DictReader(file.read().decode("utf-8").splitlines())
 
-                for row in csv_data:
+                for idx, row in enumerate(csv_data, start=1):
                     if "body" in row and "to" in row:
                         payload.append({"body": row["body"], "to": row["to"]})
                     else:
-                        errors.append(f"Invalid CSV row format: {row}")
+                        errors.append(f"Invalid CSV row format at line {idx+1}: {row}")
             else:
                 errors.append("Invalid file format or no file uploaded")
 
         if not payload:
-            error_message = {
-                "message": "No valid payload found. Please either upload a valid CSV file or populate the request body.",
-                "errors": errors,
-            }
+            warnings.append("No valid payload found. No message was sent")
 
-            return jsonify(error_message), 200
+            res = {"message": "", "errors": errors, "warnings": warnings}
+
+            return jsonify(res), 200
 
         user_handler = UserHandler()
 
@@ -739,7 +739,18 @@ def publish_endpoint(reference: str, service_id: str):
             thread.start()
             return response
 
-        res = {"message": "Messages sent successfully", "errors": errors}
+        if len(errors) > 0:
+            warnings.append("Some messages were not sent due to invalid formats.")
+
+            res = {"message": "", "errors": errors, "warnings": warnings}
+
+            return jsonify(res), 200
+
+        res = {
+            "message": "Messages sent successfully",
+            "errors": errors,
+            "warnings": warnings,
+        }
 
         return jsonify(res), 200
 
