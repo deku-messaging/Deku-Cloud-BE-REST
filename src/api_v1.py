@@ -582,6 +582,10 @@ def single_log_endpoint(log_id):
             raise Unauthorized()
 
         if method == "put":
+            if not request.json.get("status"):
+                logger.error("No status provided")
+                raise BadRequest()
+
             status = request.json.get("status")
 
             if status.lower() not in ["delivered", "failed"]:
