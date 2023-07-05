@@ -1,11 +1,11 @@
-<img src="https://github.com/Afkanerd/Afkanerd-Resources/raw/main/images/Artboard%209.png" align="right" width="350px"/>
+<img src="https://github.com/deku-messaging/Deku-Resources/raw/main/Icon.png" align="right" width="350px"/>
 
 # Deku Cloud Back-End REST
 
 ## Documentation
 
 1. [Configurations](docs/configurations.md)
-2. [API Endpoints](docs/api_versions.md)
+2. [REST API References](docs/api_versions.md)
 
 ## Contribution
 
