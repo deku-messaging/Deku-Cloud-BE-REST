@@ -3,6 +3,7 @@
 import logging
 from datetime import datetime
 from typing import Optional
+import secrets
 
 from src.orm.peewee.models.user import User
 
@@ -38,6 +39,19 @@ class UserHandler:
 
         try:
             user = User.create(email=email, password=password, **kwargs)
+
+            account_sid_length = 16
+            account_sid_prefix = "AC"
+            account_sid_suffix = str(user.id)
+
+            account_sid_random_chars = secrets.token_hex(
+                (account_sid_length - len(account_sid_prefix) - len(account_sid_suffix))
+            )
+            user.account_sid = (
+                account_sid_prefix + account_sid_random_chars + account_sid_suffix
+            )
+            user.auth_token = secrets.token_hex(32)
+            user.save()
 
             logger.info("User created successfully.")
 

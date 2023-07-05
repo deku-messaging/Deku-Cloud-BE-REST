@@ -1,21 +1,17 @@
 """Peewee user models."""
 
 from datetime import datetime
-import secrets
 
 from peewee import Model, CharField, DateTimeField
 
 from src.orm.peewee.connector import database
 
-account_sid = "AC" + secrets.token_hex(16)
-auth_token = secrets.token_hex(32)
-
 
 class User(Model):
     """A model for the User table."""
 
-    account_sid = CharField(default=account_sid)
-    auth_token = CharField(default=auth_token)
+    account_sid = CharField(unique=True)
+    auth_token = CharField()
     email = CharField(unique=True)
     password = CharField()
     first_name = CharField(null=True)

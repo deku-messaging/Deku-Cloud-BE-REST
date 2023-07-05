@@ -11,14 +11,15 @@
 2. [Projects](#projects)
    1. [Create a project](#create-a-project)
    2. [List a single project](#list-a-single-project)
-   3. [Update a single](#update-a-single-project)
-   4. [Delete a single](#delete-a-single-project)
+   3. [Update a single project](#update-a-single-project)
+   4. [Delete a single project](#delete-a-single-project)
    5. [List all projects](#list-all-projects)
 3. [Publications](#publications)
-   1. [Publish](#publish)
+   1. [Publish JSON/ARRAY](#publish-json/array)
+   2. [Publish CSV File](#publish-csv-file)
 4. [Logs](#logs)
    1. [List all Logs](#list-all-logs)
-   2. [Delete Log Entry](#delete-log-entry)
+   2. [Update a single log](#update-a-single-log)
 
 ---
 
@@ -562,7 +563,7 @@ from fulfilling the request.
 Details of all projects for the authenticated user.
 
 ```
-GET /
+GET /projects
 ```
 
 _**Headers**_
@@ -612,9 +613,9 @@ from fulfilling the request.
 
 Publication management resources.
 
-### Publish
+### Publish JSON/ARRAY
 
-Make a request to deku server to publish.
+Make a request to deku server to publish a json/array body.
 
 ```
 POST /projects/:reference/services/:service_id
@@ -641,8 +642,16 @@ _**Body**_
 | `body`    | string | Yes      | Content to be sent via deku service. |
 | `to`      | string | Yes      | Recipient.                           |
 
+> Object body
+
 ```shell
 curl --location 'https://staging.smswithoutborders.com:12000/v1/projects/:reference/services/:service_id' --header 'Content-Type: application/json' --user "account_sid:auth_token" --data-raw '{"body": "", "to": ""}'
+```
+
+> Array body
+
+```shell
+curl --location 'https://staging.smswithoutborders.com:12000/v1/projects/:reference/services/:service_id' --header 'Content-Type: application/json' --user "account_sid:auth_token" --data-raw '[{"body": "", "to": ""}, {"body": "", "to": ""}]'
 ```
 
 Example response:
@@ -653,15 +662,72 @@ Raised when request completed successfully.
 
 ```json
 {
-	"channel": "",
-	"sid": "",
-	"from_": "",
-	"direction": "",
-	"status": "",
-	"reason": "",
-	"created_at": "",
-	"to_": "",
-	"body": ""
+	"message": "",
+	"errors": [],
+	"warnings": []
+}
+```
+
+> [400] Bad Request
+
+Raised when some attributes are omitted or the request isn't structured
+correctly.
+
+> [401] Unauthorized
+
+Raised when the request lacks valid authentication credentials for the requested
+resource.
+
+> [500] Internal Server Error
+
+Raised when the server encountered an unexpected condition that prevented it
+from fulfilling the request.
+
+### Publish CSV File
+
+Make a request to deku server to publish.
+
+```
+POST /projects/:reference/services/:service_id
+```
+
+_**Headers**_
+
+| Attribute       | Value                                                 | Required | Description                                                         |
+| :-------------- | :---------------------------------------------------- | :------- | :------------------------------------------------------------------ |
+| `Authorization` | Basic _**Base64 encoded account_sid and auth_token**_ | Yes      | Used to provide credentials that authenticate a user with a server. |
+
+_**Params**_
+
+| Attribute    | Type   | Required | Description                                 |
+| :----------- | :----- | :------- | :------------------------------------------ |
+| `reference`  | string | Yes      | A unique string used to identify a project. |
+| `service_id` | string | Yes      | a Deku service (SMS, NOTIFICATION).         |
+
+_**Form**_
+
+| Attribute     | Type   | Required | Description                                      |
+| :------------ | :----- | :------- | :----------------------------------------------- |
+| `key`         | string | Yes      | Key of the form field. (Requires "file")         |
+| `type`        | string | Yes      | Type of the form field. (Requires "File")        |
+| `value`       | string | Yes      | Value of the form field. (Requires path to file) |
+| `description` | string | No       | Description of the form field                    |
+
+```shell
+curl --location 'https://staging.smswithoutborders.com:12000/v1/projects/:reference/services/:service_id' --user "account_sid:auth_token" --form 'file=@"/path/to/sample.csv"'
+```
+
+Example response:
+
+> [200] Successful
+
+Raised when request completed successfully.
+
+```json
+{
+	"message": "",
+	"errors": [],
+	"warnings": []
 }
 ```
 
@@ -741,14 +807,14 @@ resource.
 Raised when the server encountered an unexpected condition that prevented it
 from fulfilling the request.
 
-### Delete log entry
+### Update a single log
 
 > _**[Authentication](#authentication) Required**_
 
-Delete a single log entry for the authenticated user.
+Update details of a single log for the authenticated user.
 
 ```
-DELETE /logs/:log_id
+PUT /logs/:log_id
 ```
 
 _**Headers**_
@@ -759,19 +825,36 @@ _**Headers**_
 
 _**Params**_
 
-| Attribute | Type   | Required | Description                                   |
-| :-------- | :----- | :------- | :-------------------------------------------- |
-| `log_id`  | string | Yes      | A unique string used to identify a log entry. |
+| Attribute | Type   | Required | Description                             |
+| :-------- | :----- | :------- | :-------------------------------------- |
+| `log_id`  | string | Yes      | A unique string used to identify a log. |
+
+_**Body**_
+
+| Attribute | Type   | Required | Description                |
+| :-------- | :----- | :------- | :------------------------- |
+| `status`  | string | Yes      | Updated status of the log. |
 
 ```shell
-curl --location --request DELETE 'https://staging.smswithoutborders.com:12000/v1/logs/:log_id' --header 'Content-Type: application/json'
+curl --location --request PUT 'https://staging.smswithoutborders.com:12000/v1/logs/:log_id' --header 'Content-Type: application/json' --data-raw '{"status": ""}'
 ```
 
 Example response:
 
 > [200] Successful
 
-Raised when the request to delete the log entry is completed successfully.
+Raised when the request to update the log details is completed successfully.
+
+```json
+{
+	""
+}
+```
+
+> [400] Bad Request
+
+Raised when some attributes are omitted or the request isn't structured
+correctly.
 
 > [401] Unauthorized
 
@@ -780,7 +863,7 @@ resource.
 
 > [404] Not Found
 
-Raised when the log entry to be deleted is not found.
+Raised when the server cannot find the log to be updated.
 
 > [500] Internal Server Error
 

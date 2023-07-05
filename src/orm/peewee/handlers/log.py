@@ -82,11 +82,11 @@ class LogHandler:
             logs = Log.select()
 
             for field, value in kwargs.items():
-                if field == "user_id":
-                    where_fields += (Log.user_id == value,)
+                if field == "id":
+                    where_fields += (Log.id == value,)
                     continue
 
-                if field == "friendly_name":
+                if field == "to":
                     where_fields += (getattr(Log, field).contains(value),)
                     continue
 
@@ -127,6 +127,45 @@ class LogHandler:
         except Exception as error:
             logger.error("Error retrieving logs.")
             raise error
+
+    def update_log(self, log_id: int, **kwargs) -> Optional[Log]:
+        """Update an existing log.
+
+        :param log_id: int - The ID of the log to be updated.
+        :param kwargs: dict - fields to be updated for the log.
+
+        :erturn: Optional[Log] - The updated log, or None if the log with the ID does not exist.
+        """
+        try:
+            log = self.get_log_by_id(log_id)
+            if not log:
+                logger.error("Log with ID %s does not exist.", log_id)
+                return None
+
+            # Generate a dictionary of fields to update.
+            update_fields = {}
+            for field, value in kwargs.items():
+                if hasattr(log, field):
+                    update_fields[field] = value
+                else:
+                    logger.warning("Field %s does not exist for log model.", field)
+
+            if update_fields:
+                Log.update(**update_fields).where(Log.id == log_id).execute()
+
+                # Reload the updated log and return it.
+                updated_log = self.get_log_by_id(log_id)
+
+                logger.info("Log updated successfully.")
+
+                return updated_log
+
+            logger.warning("No valid fields provided for update.")
+            return None
+
+        except Exception as error:
+            logger.error("Error updating log: %s", error)
+            raise
 
     def delete_log(self, log_id: int) -> bool:
         """Delete a log by its ID.

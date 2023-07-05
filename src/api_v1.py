@@ -3,8 +3,10 @@
 import logging
 import json
 from datetime import timedelta
+import csv
+import threading
 
-from flask import request, Blueprint, Response, jsonify
+from flask import request, Blueprint, Response, jsonify, after_this_request
 from playhouse.shortcuts import model_to_dict
 
 from werkzeug.exceptions import (
@@ -463,7 +465,7 @@ def single_project_endpoint(project_id):
         return "Internal Server Error", 500
 
 
-@v1.route("/logs", methods=["GET", "DELETE"])
+@v1.route("/logs", methods=["GET"])
 def log_endpoint():
     """Manage Logs"""
 
@@ -517,16 +519,6 @@ def log_endpoint():
                 ] = f"rows {input_data['data_range'][0]}-{input_data['data_range'][1]}/{total}"
                 res.headers["Access-Control-Expose-Headers"] = "Content-Range"
 
-        if method == "delete":
-            filters_ = json.loads(request.args.get("filter"))
-
-            if isinstance(filters_.get("id"), list):
-                for log_id in filters_["id"]:
-                    if not log_handler.delete_log(log_id=log_id):
-                        logger.error("Log with ID '%s' not found", log_id)
-
-            res = jsonify(filters_["id"])
-
         session = session_handler.update_session(session_id=sid)
 
         session_data = json.loads(session.data)
@@ -560,7 +552,7 @@ def log_endpoint():
         return "Internal Server Error", 500
 
 
-@v1.route("/logs/<string:log_id>", methods=["DELETE"])
+@v1.route("/logs/<string:log_id>", methods=["PUT"])
 def single_log_endpoint(log_id):
     """Single Log Endpoint"""
 
@@ -589,8 +581,18 @@ def single_log_endpoint(log_id):
         if not session:
             raise Unauthorized()
 
-        if method == "delete":
-            if not log_handler.delete_log(log_id=log_id):
+        if method == "put":
+            if not request.json.get("status"):
+                logger.error("No status provided")
+                raise BadRequest()
+
+            status = request.json.get("status")
+
+            if status.lower() not in ["delivered", "failed"]:
+                logger.error("Invalid log status: %s", status)
+                raise BadRequest(f"Invalid log status: {status}")
+
+            if not log_handler.update_log(log_id=log_id, status=status):
                 raise NotFound(f"Log with ID '{log_id}' not found")
 
             current_log = ""
@@ -634,6 +636,9 @@ def single_log_endpoint(log_id):
 def publish_endpoint(reference: str, service_id: str):
     """Publish Endpoint"""
 
+    errors = []
+    warnings = []
+
     try:
         if not request.authorization:
             logger.error("No Authorization header")
@@ -651,18 +656,50 @@ def publish_endpoint(reference: str, service_id: str):
             logger.error("Invalid service: %s", service_id)
             raise BadRequest()
 
-        if not request.json.get("body"):
-            logger.error("No body")
-            raise BadRequest()
-
-        if not request.json.get("to"):
-            logger.error("No contact to send to")
-            raise BadRequest()
-
         username = request.authorization.get("username")
         password = request.authorization.get("password")
-        body = request.json.get("body")
-        to_ = request.json.get("to")
+
+        # Handle JSON payload
+        payload = []
+
+        if request.is_json:
+            json_data = request.get_json()
+
+            if isinstance(json_data, list):
+                for item in json_data:
+                    if "body" in item and "to" in item:
+                        payload.append({"body": item["body"], "to": item["to"]})
+                    else:
+                        errors.append(f"Invalid JSON object format: {item}")
+            elif isinstance(json_data, dict):
+                if "body" in json_data and "to" in json_data:
+                    payload.append({"body": json_data["body"], "to": json_data["to"]})
+                else:
+                    errors.append(f"Invalid JSON object format: {json_data}")
+            else:
+                errors.append(f"Invalid JSON payload format: {json_data}")
+
+        # Handle uploaded CSV file
+        if "file" in request.files:
+            file = request.files["file"]
+
+            if file and file.filename.endswith(".csv"):
+                csv_data = csv.DictReader(file.read().decode("utf-8").splitlines())
+
+                for idx, row in enumerate(csv_data, start=1):
+                    if "body" in row and "to" in row:
+                        payload.append({"body": row["body"], "to": row["to"]})
+                    else:
+                        errors.append(f"Invalid CSV row format at line {idx+1}: {row}")
+            else:
+                errors.append("Invalid file format or no file uploaded")
+
+        if not payload:
+            warnings.append("No valid payload found. No message was sent")
+
+            res = {"message": "", "errors": errors, "warnings": warnings}
+
+            return jsonify(res), 200
 
         user_handler = UserHandler()
 
@@ -685,17 +722,37 @@ def publish_endpoint(reference: str, service_id: str):
             logger.error(err_message)
             raise NotFound(err_message)
 
-        message = service.publish_to_service(
-            service_id=service_id,
-            content=body,
-            project_reference=reference,
-            phone_number=to_,
-            user=current_user,
-        )
+        def send_messages():
+            for item in payload:
+                service.publish_to_service(
+                    service_id=service_id,
+                    content=item["body"],
+                    project_reference=reference,
+                    phone_number=item["to"].replace(" ", ""),
+                    user=current_user,
+                )
 
-        res = jsonify(message)
+        @after_this_request
+        def send_messages_after_request(response):
+            # Start a new thread to send messages
+            thread = threading.Thread(target=send_messages)
+            thread.start()
+            return response
 
-        return res, 200
+        if len(errors) > 0:
+            warnings.append("Some messages were not sent due to invalid formats.")
+
+            res = {"message": "", "errors": errors, "warnings": warnings}
+
+            return jsonify(res), 200
+
+        res = {
+            "message": "Messages sent successfully",
+            "errors": errors,
+            "warnings": warnings,
+        }
+
+        return jsonify(res), 200
 
     except BadRequest as err:
         return str(err), 400
