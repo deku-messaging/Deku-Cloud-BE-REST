@@ -563,7 +563,7 @@ from fulfilling the request.
 Details of all projects for the authenticated user.
 
 ```
-GET /
+GET /projects
 ```
 
 _**Headers**_
