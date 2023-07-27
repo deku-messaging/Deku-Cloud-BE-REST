@@ -1,25 +1,41 @@
-name: Deploy Deku Cloud Back-end REST on Server
+name: 🚀 Deploy Deku Cloud Back-end REST on Server
 on:
   push:
     branches:
       - staging
 jobs:
   deploy:
-    name: Execute Deployment Script on Server
+    name: 🚀 Execute Deployment Script on Server
     runs-on: ubuntu-latest
     steps:
-      - name: Execute Remote SSH Commands
+      - name: 🚀 Execute Remote SSH Commands
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           script: |
-            echo "====== Updating repository ======"
-            cd major-build/deku-cloud/repos/back-end-rest/
-            git pull
-            echo "====== Repository update complete ======"
+            set -e
 
-            echo "====== Building project ======"
-            ../../start.sh
-            echo "====== Project build complete ======"
+            echo "============================"
+            echo "🚀 Updating repository ..."
+            echo "============================"
+            cd major-build/deku-cloud/repos/back-end-rest/
+            if ! git pull; then
+              echo "❌ Error updating repository!"
+              exit 1
+            fi
+            echo "==============================="
+            echo "✅ Repository update complete"
+            echo "==============================="
+
+            echo "========================="
+            echo "🚀 Building project ..."
+            echo "========================="
+            if ! ../../start.sh; then
+              echo "❌ Error building project!"
+              exit 1
+            fi
+            echo "==========================="
+            echo "✅ Project build complete"
+            echo "==========================="
