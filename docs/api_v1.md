@@ -15,7 +15,7 @@
    4. [Delete a single project](#delete-a-single-project)
    5. [List all projects](#list-all-projects)
 3. [Publications](#publications)
-   1. [Publish JSON/ARRAY](#publish-json/array)
+   1. [Publish JSON/ARRAY](#publish-jsonarray)
    2. [Publish CSV File](#publish-csv-file)
 4. [Logs](#logs)
    1. [List all Logs](#list-all-logs)
@@ -34,7 +34,7 @@ User management resources.
 Create a new user's account on the deku cloud server.
 
 ```
-POST /signup
+POST v1/signup
 ```
 
 _**Headers**_
@@ -94,7 +94,7 @@ from fulfilling the request.
 Login to an existing user's account.
 
 ```
-POST /login
+POST v1/login
 ```
 
 _**Headers**_
@@ -149,7 +149,7 @@ from fulfilling the request.
 Details of the currently authenticated user.
 
 ```
-GET /
+GET v1/
 ```
 
 _**Headers**_
@@ -206,7 +206,7 @@ from fulfilling the request.
 Update currently authenticated user's account.
 
 ```
-PUT /
+PUT v1/
 ```
 
 _**Headers**_
@@ -280,7 +280,7 @@ from fulfilling the request.
 Delete currently authenticated user's account.
 
 ```
-DELETE /
+DELETE v1/
 ```
 
 _**Headers**_
@@ -326,7 +326,7 @@ Project management resources.
 Create a new project for an existing user on the deku server.
 
 ```
-POST /projects
+POST v1/projects
 ```
 
 _**Headers**_
@@ -341,9 +341,10 @@ _**Body**_
 | :-------------- | :----- | :------- | :-------------------------------------------------------------------------------------------------------------------- |
 | `friendly_name` | string | Yes      | The friendly name of the project. It should be unique and provide a descriptive name for the project.                 |
 | `description`   | string | No       | A brief description of the project. This field allows you to provide additional details or context about the project. |
+| `reference`     | string | No       | A unique reference ID for the project. If not provided, it will be auto-generated.                                    |
 
 ```shell
-curl --location 'https://staging.smswithoutborders.com:12000/v1/projects' --header 'Content-Type: application/json' --data-raw '{"friendly_name": "", "description": ""}'
+curl --location 'https://staging.smswithoutborders.com:12000/v1/projects' --header 'Content-Type: application/json' --data-raw '{"friendly_name": "", "description": "", "reference": ""}'
 ```
 
 Example response:
@@ -388,7 +389,7 @@ from fulfilling the request.
 Details of a single project for the authenticated user.
 
 ```
-GET /projects/:project_id
+GET v1/projects/:project_id
 ```
 
 _**Headers**_
@@ -449,7 +450,7 @@ from fulfilling the request.
 Update details of a single project for the authenticated user.
 
 ```
-PUT /projects/:project_id
+PUT v1/projects/:project_id
 ```
 
 _**Headers**_
@@ -517,7 +518,7 @@ from fulfilling the request.
 Delete a single project for the authenticated user.
 
 ```
-DELETE /projects/:project_id
+DELETE v1/projects/:project_id
 ```
 
 _**Headers**_
@@ -563,7 +564,7 @@ from fulfilling the request.
 Details of all projects for the authenticated user.
 
 ```
-GET /projects
+GET v1/projects
 ```
 
 _**Headers**_
@@ -618,7 +619,7 @@ Publication management resources.
 Make a request to deku server to publish a json/array body.
 
 ```
-POST /projects/:reference/services/:service_id
+POST v1/projects/:reference/services/:service_id
 ```
 
 _**Headers**_
@@ -688,7 +689,7 @@ from fulfilling the request.
 Make a request to deku server to publish.
 
 ```
-POST /projects/:reference/services/:service_id
+POST v1/projects/:reference/services/:service_id
 ```
 
 _**Headers**_
@@ -757,7 +758,7 @@ Log management resources.
 Details of all publication logs for the currently authenticated user.
 
 ```
-GET /logs
+GET v1/logs
 ```
 
 _**Headers**_
@@ -814,7 +815,7 @@ from fulfilling the request.
 Update details of a single log for the authenticated user.
 
 ```
-PUT /logs/:log_id
+PUT v1/logs/:log_id
 ```
 
 _**Headers**_

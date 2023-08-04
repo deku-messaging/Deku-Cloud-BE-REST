@@ -15,20 +15,24 @@ logger = logging.getLogger(__name__)
 
 
 def create_project(
-    friendly_name: str, description: str, user_id: int
+    friendly_name: str, description: str, user_id: int, reference: str = None
 ) -> Optional[Dict]:
     """Creates a new project and corresponding RabbitMQ exchange.
 
     :param friendly_name: str - The friendly name of the project.
     :param description: str - The description of the project.
     :param user_id: int - The ID of the user that the project belongs to.
+    :param reference: str - The custom reference of the project.
 
     :return: Optional[Dict] - A dictionary representation of the new project, or None if creation failed.
     """
     project_handler = ProjectHandler()
 
     new_project = project_handler.create_project(
-        friendly_name=friendly_name, description=description, user_id=user_id
+        friendly_name=friendly_name,
+        description=description,
+        user_id=user_id,
+        reference=reference,
     )
 
     if not new_project:

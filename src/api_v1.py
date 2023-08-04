@@ -334,11 +334,30 @@ def project_endpoint():
 
             friendly_name = request.json.get("friendly_name")
             description = request.json.get("description")
+            reference = request.json.get("reference")
+
+            if reference:
+                if len(reference) < 5:
+                    message = "Reference must be at least 5 characters long"
+                    logger.error(message)
+                    raise BadRequest(message)
+
+                allowed_chars = set(
+                    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+                )
+
+                differences = set(reference).difference(allowed_chars)
+
+                if differences:
+                    message = f"Reference can only contain letters and numbers not {differences}"
+                    logger.error(message)
+                    raise BadRequest(message)
 
             created_project = project.create_project(
                 friendly_name=friendly_name,
                 description=description,
                 user_id=session.unique_identifier,
+                reference=reference,
             )
 
             if not created_project:
