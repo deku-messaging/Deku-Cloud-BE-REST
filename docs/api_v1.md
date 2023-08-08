@@ -695,11 +695,22 @@ from fulfilling the request.
 
 ### Publish CSV File
 
-Make a request to deku server to publish.
+Make a request to deku server to publish a csv file.
 
 ```
 POST v1/projects/:reference/services/:service_id
 ```
+
+_**CSV File Format**_
+
+| Attribute | Type   | Required | Description                                          |
+| :-------- | :----- | :------- | :--------------------------------------------------- |
+| `body`    | string | Yes      | Content to be sent via deku service.                 |
+| `to`      | string | Yes      | Recipient.                                           |
+| `sid`     | string | No       | Optional state identifier to associate message with. |
+
+> **Note**: The first row contains the column headers. Each subsequent row
+> contains the values for a single message.
 
 _**Headers**_
 
@@ -737,6 +748,14 @@ Raised when request completed successfully.
 {
 	"message": "",
 	"errors": [],
+	"response": [
+		{
+			"errors": [],
+			"message": "",
+			"sid": "",
+			"warnings": []
+		}
+	],
 	"warnings": []
 }
 ```
