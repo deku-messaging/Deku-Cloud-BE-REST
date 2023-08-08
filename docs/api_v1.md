@@ -638,21 +638,22 @@ _**Params**_
 
 _**Body**_
 
-| Attribute | Type   | Required | Description                          |
-| :-------- | :----- | :------- | :----------------------------------- |
-| `body`    | string | Yes      | Content to be sent via deku service. |
-| `to`      | string | Yes      | Recipient.                           |
+| Attribute | Type   | Required | Description                                          |
+| :-------- | :----- | :------- | :--------------------------------------------------- |
+| `body`    | string | Yes      | Content to be sent via deku service.                 |
+| `to`      | string | Yes      | Recipient.                                           |
+| `sid`     | string | No       | Optional state identifier to associate message with. |
 
 > Object body
 
 ```shell
-curl --location 'https://staging.smswithoutborders.com:12000/v1/projects/:reference/services/:service_id' --header 'Content-Type: application/json' --user "account_sid:auth_token" --data-raw '{"body": "", "to": ""}'
+curl --location 'https://staging.smswithoutborders.com:12000/v1/projects/:reference/services/:service_id' --header 'Content-Type: application/json' --user "account_sid:auth_token" --data-raw '{"body": "", "to": "", "sid": ""}'
 ```
 
 > Array body
 
 ```shell
-curl --location 'https://staging.smswithoutborders.com:12000/v1/projects/:reference/services/:service_id' --header 'Content-Type: application/json' --user "account_sid:auth_token" --data-raw '[{"body": "", "to": ""}, {"body": "", "to": ""}]'
+curl --location 'https://staging.smswithoutborders.com:12000/v1/projects/:reference/services/:service_id' --header 'Content-Type: application/json' --user "account_sid:auth_token" --data-raw '[{"body": "", "to": "", "sid": ""}, {"body": "", "to": "", "sid": ""}]'
 ```
 
 Example response:
@@ -665,6 +666,14 @@ Raised when request completed successfully.
 {
 	"message": "",
 	"errors": [],
+	"response": [
+		{
+			"errors": [],
+			"message": "",
+			"sid": "",
+			"warnings": []
+		}
+	],
 	"warnings": []
 }
 ```

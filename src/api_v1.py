@@ -655,8 +655,7 @@ def single_log_endpoint(log_id):
 def publish_endpoint(reference: str, service_id: str):
     """Publish Endpoint"""
 
-    errors = []
-    warnings = []
+    results = {"message": "", "errors": [], "warnings": [], "response": []}
 
     try:
         if not request.authorization:
@@ -680,23 +679,64 @@ def publish_endpoint(reference: str, service_id: str):
 
         # Handle JSON payload
         payload = []
+        required_keys = {"body", "to"}
 
         if request.is_json:
             json_data = request.get_json()
 
             if isinstance(json_data, list):
                 for item in json_data:
-                    if "body" in item and "to" in item:
-                        payload.append({"body": item["body"], "to": item["to"]})
+                    result = {
+                        "sid": item.get("sid"),
+                        "message": "",
+                        "errors": [],
+                        "warnings": [],
+                    }
+
+                    missing_keys = required_keys.difference(item.keys())
+
+                    if missing_keys:
+                        missing_key = missing_keys.pop()
+                        result["errors"].append(f"Missing required key '{missing_key}'")
+
                     else:
-                        errors.append(f"Invalid JSON object format: {item}")
+                        payload.append(
+                            {
+                                "body": item["body"],
+                                "to": item["to"],
+                                "sid": item.get("sid"),
+                            }
+                        )
+                        result["message"] = "queued"
+
+                    results["response"].append(result)
             elif isinstance(json_data, dict):
-                if "body" in json_data and "to" in json_data:
-                    payload.append({"body": json_data["body"], "to": json_data["to"]})
+                result = {
+                    "sid": json_data.get("sid"),
+                    "message": "",
+                    "errors": [],
+                    "warnings": [],
+                }
+
+                missing_keys = required_keys.difference(json_data.keys())
+
+                if missing_keys:
+                    missing_key = missing_keys.pop()
+                    result["errors"].append(f"Missing required key '{missing_key}'")
+
                 else:
-                    errors.append(f"Invalid JSON object format: {json_data}")
+                    payload.append(
+                        {
+                            "body": json_data["body"],
+                            "to": json_data["to"],
+                            "sid": json_data.get("sid"),
+                        }
+                    )
+                    result["message"] = "queued"
+
+                results["response"].append(result)
             else:
-                errors.append(f"Invalid JSON payload format: {json_data}")
+                results["errors"].append(f"Invalid JSON payload format: {json_data}")
 
         # Handle uploaded CSV file
         if "file" in request.files:
@@ -706,19 +746,39 @@ def publish_endpoint(reference: str, service_id: str):
                 csv_data = csv.DictReader(file.read().decode("utf-8").splitlines())
 
                 for idx, row in enumerate(csv_data, start=1):
-                    if "body" in row and "to" in row:
-                        payload.append({"body": row["body"], "to": row["to"]})
+                    result = {
+                        "sid": row.get("sid"),
+                        "message": "",
+                        "errors": [],
+                        "warnings": [],
+                    }
+
+                    missing_keys = required_keys.difference(row.keys())
+
+                    if missing_keys:
+                        missing_key = missing_keys.pop()
+                        result["errors"].append(
+                            f"Missing required key '{missing_key}' at line {idx+1}"
+                        )
+
                     else:
-                        errors.append(f"Invalid CSV row format at line {idx+1}: {row}")
+                        payload.append(
+                            {
+                                "body": row["body"],
+                                "to": row["to"],
+                                "sid": row.get("sid"),
+                            }
+                        )
+                        result["message"] = "queued"
+
+                    results["response"].append(result)
             else:
-                errors.append("Invalid file format or no file uploaded")
+                results["errors"].append("Invalid file format or no file uploaded")
 
         if not payload:
-            warnings.append("No valid payload found. No message was sent")
+            results["warnings"].append("No valid payload found. No message was sent")
 
-            res = {"message": "", "errors": errors, "warnings": warnings}
-
-            return jsonify(res), 200
+            return jsonify(results), 200
 
         user_handler = UserHandler()
 
@@ -749,6 +809,7 @@ def publish_endpoint(reference: str, service_id: str):
                     project_reference=reference,
                     phone_number=item["to"].replace(" ", ""),
                     user=current_user,
+                    sid=item["sid"],
                 )
 
         @after_this_request
@@ -758,20 +819,14 @@ def publish_endpoint(reference: str, service_id: str):
             thread.start()
             return response
 
-        if len(errors) > 0:
-            warnings.append("Some messages were not sent due to invalid formats.")
+        if any(result["errors"] for result in results["response"]):
+            results["warnings"].append(
+                "Some messages failed to process due to errors."
+            )
+            return jsonify(results), 200
 
-            res = {"message": "", "errors": errors, "warnings": warnings}
-
-            return jsonify(res), 200
-
-        res = {
-            "message": "Messages sent successfully",
-            "errors": errors,
-            "warnings": warnings,
-        }
-
-        return jsonify(res), 200
+        results["message"] = "Processing all messages ..."
+        return jsonify(results), 200
 
     except BadRequest as err:
         return str(err), 400
