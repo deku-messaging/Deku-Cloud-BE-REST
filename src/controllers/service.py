@@ -30,7 +30,7 @@ def create_log(**kwargs):
     return model_to_dict(log_handler.create_log(**kwargs), recurse=False)
 
 
-def handle_invalid_phone_number(service_id, project_reference, phone_number, user):
+def handle_invalid_phone_number(service_id, project_reference, phone_number, user, sid):
     """
     Handle the case of an invalid phone number.
 
@@ -49,13 +49,14 @@ def handle_invalid_phone_number(service_id, project_reference, phone_number, use
         status="failed",
         reason=error_message,
         to_=phone_number,
+        sid=sid,
     )
 
     raise InvalidPhoneNUmber(error_message)
 
 
 def handle_number_parse_exception(
-    service_id, project_reference, phone_number, user, error
+    service_id, project_reference, phone_number, user, error, sid
 ):
     """
     Handle a number parse exception.
@@ -75,13 +76,14 @@ def handle_number_parse_exception(
         status="failed",
         reason=error_message,
         to_=phone_number,
+        sid=sid,
     )
 
     raise error
 
 
 def handle_no_client_exception(
-    service_name, service_id, project_reference, phone_number, user
+    service_name, service_id, project_reference, phone_number, user, sid
 ):
     """
     Handle the case where no client is available for the service.
@@ -103,11 +105,12 @@ def handle_no_client_exception(
         status="failed",
         reason="No available channel. Start a Deku SMS client or provide your Twilio messaging credentials.",
         to_=phone_number,
+        sid=sid,
     )
 
 
 def handle_twilio_rest_exception(
-    service_id, project_reference, phone_number, user, error
+    service_id, project_reference, phone_number, user, error, sid
 ):
     """
     Handle a TwilioRestException.
@@ -130,12 +133,15 @@ def handle_twilio_rest_exception(
         status="failed",
         reason=error.msg,
         to_=phone_number,
+        sid=sid,
     )
 
     raise error
 
 
-def handle_generic_exception(service_id, project_reference, phone_number, user, error):
+def handle_generic_exception(
+    service_id, project_reference, phone_number, user, error, sid
+):
     """
     Handle a generic exception.
 
@@ -153,6 +159,7 @@ def handle_generic_exception(service_id, project_reference, phone_number, user, 
         status="failed",
         reason=error_message,
         to_=phone_number,
+        sid=sid,
     )
     raise error
 
@@ -197,7 +204,7 @@ def publish_with_twilio(
 
 
 def publish_with_deku_client(
-    service_name, service_id, project_reference, content, phone_number, user
+    service_name, service_id, project_reference, content, phone_number, user, sid
 ):
     """
     Publish a message using the Deku client.
@@ -222,9 +229,10 @@ def publish_with_deku_client(
         direction="outbound-api",
         status="",
         to_=phone_number,
+        sid=sid,
     )
 
-    body = {"text": content, "to": phone_number, "id": new_log.id}
+    body = {"text": content, "to": phone_number, "id": new_log.id, "sid": sid}
 
     try:
         rabbitmq.publish_to_exchange(
@@ -245,7 +253,9 @@ def publish_with_deku_client(
     return model_to_dict(new_log, recurse=False)
 
 
-def publish_to_service(service_id, content, project_reference, user, phone_number=None):
+def publish_to_service(
+    service_id, content, project_reference, user, phone_number=None, sid=None
+):
     """
     Publish a message to the specified service.
 
@@ -294,6 +304,7 @@ def publish_to_service(service_id, content, project_reference, user, phone_numbe
                     project_reference=project_reference,
                     phone_number=phone_number,
                     user=user,
+                    sid=sid,
                 )
 
             return publish_with_deku_client(
@@ -303,6 +314,7 @@ def publish_to_service(service_id, content, project_reference, user, phone_numbe
                 content=content,
                 phone_number=phone_number,
                 user=user,
+                sid=sid,
             )
 
         logger.error("Unsupported service_id '%s'", service_id)
@@ -314,6 +326,7 @@ def publish_to_service(service_id, content, project_reference, user, phone_numbe
             project_reference=project_reference,
             phone_number=phone_number,
             user=user,
+            sid=sid,
         )
     except phonenumbers.NumberParseException as error:
         handle_number_parse_exception(
@@ -322,6 +335,7 @@ def publish_to_service(service_id, content, project_reference, user, phone_numbe
             phone_number=phone_number,
             user=user,
             error=error,
+            sid=sid,
         )
     except TwilioRestException as error:
         handle_twilio_rest_exception(
@@ -330,6 +344,7 @@ def publish_to_service(service_id, content, project_reference, user, phone_numbe
             phone_number=phone_number,
             user=user,
             error=error,
+            sid=sid,
         )
     except (Exception, BadRequest) as error:
         handle_generic_exception(
@@ -338,4 +353,5 @@ def publish_to_service(service_id, content, project_reference, user, phone_numbe
             phone_number=phone_number,
             user=user,
             error=error,
+            sid=sid,
         )

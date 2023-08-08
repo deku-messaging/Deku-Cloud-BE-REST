@@ -1,0 +1,7 @@
+[
+    {
+        "action": "drop_not_null",
+        "table": "logs",
+        "column": "sid"
+    }
+]

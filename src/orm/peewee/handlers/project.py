@@ -15,11 +15,31 @@ class ProjectHandler:
     A class for handling CRUD operations on the Project model.
     """
 
+    def __generate_reference__(self, project_id: int) -> str:
+        """Generate unique reference for project"""
+        project_reference_length = 12
+        project_reference_prefix = "PJ"
+        project_reference_id = str(project_id)
+
+        project_reference_random_char = secrets.token_hex(
+            (
+                project_reference_length
+                - len(project_reference_prefix)
+                - len(project_reference_id)
+            )
+        )
+        return (
+            project_reference_prefix
+            + project_reference_id
+            + project_reference_random_char
+        )
+
     def create_project(
         self,
         friendly_name: str,
         description: str,
         user_id: int,
+        reference: str = None,
     ) -> Optional[Project]:
         """
         Create a new project.
@@ -27,28 +47,47 @@ class ProjectHandler:
         :param friendly_name: str - The friendly name of the project.
         :param description: str - The description of the project.
         :param user_id: int - The ID of the user associated with the project.
+        :param reference: str - An optional custom reference for the project.
 
         :return: Optional[Project] - The newly created project if successful, otherwise None.
         """
         # Check if a project already exists for the user
-        existing_project = self.get_projects_by_field(
-            user_id=user_id, friendly_name=friendly_name
+        existing_project = Project.get_or_none(
+            friendly_name=friendly_name, user_id=user_id
         )
 
-        if existing_project[0] > 0 and len(existing_project[1]) > 0:
+        if existing_project:
             logger.error(
                 "A project with name %s already exists for user ID %s",
                 friendly_name,
                 user_id,
             )
+
             return None
+
+        if reference:
+            existing_project_with_reference = Project.get_or_none(
+                friendly_name=friendly_name, user_id=user_id, reference=reference
+            )
+
+            if existing_project_with_reference:
+                logger.error(
+                    "A project with reference %s or name %s already exists for user ID %s",
+                    reference,
+                    friendly_name,
+                    user_id,
+                )
+
+                return None
 
         try:
             project = Project.create(
                 friendly_name=friendly_name, description=description, user_id=user_id
             )
 
-            project.reference = "PJ" + str(project.id) + secrets.token_hex(8)
+            project.reference = reference or self.__generate_reference__(
+                project_id=project.id
+            )
             project.save()
 
             logger.info("Project created successfully.")
