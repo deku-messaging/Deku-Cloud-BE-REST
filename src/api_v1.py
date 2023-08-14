@@ -337,8 +337,8 @@ def project_endpoint():
             reference = request.json.get("reference")
 
             if reference:
-                if len(reference) < 5:
-                    message = "Reference must be at least 5 characters long"
+                if len(reference) < 2:
+                    message = "Reference must be at least 2 characters long"
                     logger.error(message)
                     raise BadRequest(message)
 
