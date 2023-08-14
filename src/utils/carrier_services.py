@@ -17,17 +17,15 @@ def get_service_name(
     :param project_reference: str - A unique reference for the project.
     :param phone_number: str, optional - A phone number to use for getting the country and carrier name.
 
-    :return: str - The generated service name in the format of "{project_reference}_{country_name}_{carrier_name}".
+    :return: str - The generated service name in the format of "{project_reference}_{country_dialing_code}_{operator_code}".
     """
     try:
         if service_id.lower() == "sms":
             country_dialing_code = carrier_information.get_country_code(
                 phone_number=phone_number
             )
-            carrier_name = carrier_information.get_operator_name(
-                phone_number=phone_number
-            )
-            service_name = f"{project_reference}_{country_dialing_code}_{carrier_name}"
+            operator_code = carrier_information.get_operator_code(MSISDN=phone_number)
+            service_name = f"{project_reference}_{country_dialing_code}_{operator_code}"
 
             logger.info("Successfully generated service name")
 
