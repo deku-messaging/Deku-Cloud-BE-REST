@@ -348,10 +348,12 @@ def project_endpoint():
 
                 differences = set(reference).difference(allowed_chars)
 
+                """
                 if differences:
                     message = f"Reference can only contain letters and numbers not {differences}"
                     logger.error(message)
                     raise BadRequest(message)
+                """
 
             created_project = project.create_project(
                 friendly_name=friendly_name,
