@@ -343,17 +343,15 @@ def project_endpoint():
                     raise BadRequest(message)
 
                 allowed_chars = set(
-                    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+                    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
                 )
 
-                differences = set(reference).difference(allowed_chars)
+                disallowed_chars = set(reference).difference(allowed_chars)
 
-                """
-                if differences:
-                    message = f"Reference can only contain letters and numbers not {differences}"
+                if disallowed_chars:
+                    message = f"Reference can only contain letters, numbers, underscores, and hyphens, not {disallowed_chars}"
                     logger.error(message)
                     raise BadRequest(message)
-                """
 
             created_project = project.create_project(
                 friendly_name=friendly_name,
@@ -822,9 +820,7 @@ def publish_endpoint(reference: str, service_id: str):
             return response
 
         if any(result["errors"] for result in results["response"]):
-            results["warnings"].append(
-                "Some messages failed to process due to errors."
-            )
+            results["warnings"].append("Some messages failed to process due to errors.")
             return jsonify(results), 200
 
         results["message"] = "Processing all messages ..."
