@@ -237,7 +237,7 @@ def publish_with_deku_client(
     try:
         rabbitmq.publish_to_exchange(
             body=body,
-            routing_key=service_name.replace("_", "."),
+            routing_key=".".join(service_name.rsplit("_", 2)),
             exchange=project_reference,
             virtual_host=user.get("account_sid"),
         )
