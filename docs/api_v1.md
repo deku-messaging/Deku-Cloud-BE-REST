@@ -614,6 +614,11 @@ from fulfilling the request.
 
 Publication management resources.
 
+> [!NOTE]
+> If the 'mobile_carrier_operator_code' (MCOC) or 'country_dialing_code' (CDC) fields are left 
+> empty or contain invalid data, both 'CDC' and 'MCOC' will be automatically 
+> derived from the recipient's phone number.
+
 ### Publish JSON/ARRAY
 
 Make a request to deku server to publish a json/array body.
@@ -638,11 +643,13 @@ _**Params**_
 
 _**Body**_
 
-| Attribute | Type   | Required | Description                                          |
-| :-------- | :----- | :------- | :--------------------------------------------------- |
-| `body`    | string | Yes      | Content to be sent via deku service.                 |
-| `to`      | string | Yes      | Recipient.                                           |
-| `sid`     | string | No       | Optional state identifier to associate message with. |
+| Attribute | Type    | Required | Description                                          |
+| :-------- | :------ | :------- | :--------------------------------------------------- |
+| `body`    | string  | Yes      | Content to be sent via deku service.                 |
+| `to`      | string  | Yes      | Recipient.                                           |
+| `sid`     | string  | No       | Optional state identifier to associate message with. |
+| `cdc`     | integer | No       | Country Dialing Code (CDC).                          |
+| `mcoc`    | integer | No       | Mobile carrier operator code (MCOC).                 |
 
 > Object body
 
@@ -703,14 +710,16 @@ POST v1/projects/:reference/services/:service_id
 
 _**CSV File Format**_
 
-| Attribute | Type   | Required | Description                                          |
-| :-------- | :----- | :------- | :--------------------------------------------------- |
-| `body`    | string | Yes      | Content to be sent via deku service.                 |
-| `to`      | string | Yes      | Recipient.                                           |
-| `sid`     | string | No       | Optional state identifier to associate message with. |
+| Attribute | Type    | Required | Description                                          |
+| :-------- | :------ | :------- | :--------------------------------------------------- |
+| `body`    | string  | Yes      | Content to be sent via deku service.                 |
+| `to`      | string  | Yes      | Recipient.                                           |
+| `sid`     | string  | No       | Optional state identifier to associate message with. |
+| `cdc`     | integer | No       | Country Dialing Code (CDC).                          |
+| `mcoc`    | integer | No       | Mobile carrier operator code (MCOC).                 |
 
-> **Note**: The first row contains the column headers. Each subsequent row
-> contains the values for a single message.
+> [!NOTE] 
+> The first row contains the column headers. Each subsequent row contains the values for a single message.
 
 _**Headers**_
 

@@ -653,8 +653,15 @@ def single_log_endpoint(log_id):
 
 @v1.route("/projects/<string:reference>/services/<string:service_id>", methods=["POST"])
 def publish_endpoint(reference: str, service_id: str):
-    """Publish Endpoint"""
+    """
+    Publish Endpoint for sending messages via SMS or notification service.
 
+    :param reference: str - Reference to the project.
+    :param service_id: str - The ID of the service (either 'sms' or 'notification').
+
+    :return: JSON response with information about the status of the message(s) sent.
+    :raises: BadRequest, Unauthorized, NotFound, InternalServerError
+    """
     results = {"message": "", "errors": [], "warnings": [], "response": []}
 
     try:
@@ -700,13 +707,35 @@ def publish_endpoint(reference: str, service_id: str):
                         result["errors"].append(f"Missing required key '{missing_key}'")
 
                     else:
+                        country_dialing_code = item.get("cdc")
+                        operator_code = item.get("mcoc")
+
+                        if (
+                            country_dialing_code is not None
+                            and operator_code is not None
+                        ):
+                            if not country_dialing_code.isdigit():
+                                result["errors"].append(
+                                    "Invalid CDC (country_dialing_code). It should consist of digits."
+                                    "Both CDC and MCOC will be generated from the recipient's phone number"
+                                )
+
+                            if not operator_code.isdigit():
+                                result["errors"].append(
+                                    "Invalid MCOC (mobile_carrier_operator_code). It should consist of digits."
+                                    "Both CDC and MCOC will be generated from the recipient's phone number"
+                                )
+
                         payload.append(
                             {
                                 "body": item["body"],
                                 "to": item["to"],
                                 "sid": item.get("sid"),
+                                "country_dialing_code": country_dialing_code,
+                                "operator_code": operator_code,
                             }
                         )
+
                         result["message"] = "queued"
 
                     results["response"].append(result)
@@ -725,13 +754,32 @@ def publish_endpoint(reference: str, service_id: str):
                     result["errors"].append(f"Missing required key '{missing_key}'")
 
                 else:
+                    country_dialing_code = json_data.get("cdc")
+                    operator_code = json_data.get("mcoc")
+
+                    if country_dialing_code is not None and operator_code is not None:
+                        if not country_dialing_code.isdigit():
+                            result["errors"].append(
+                                "Invalid CDC (country_dialing_code). It should consist of digits."
+                                "Both CDC and MCOC will be generated from the recipient's phone number"
+                            )
+
+                        if not operator_code.isdigit():
+                            result["errors"].append(
+                                "Invalid MCOC (mobile_carrier_operator_code). It should consist of digits."
+                                "Both CDC and MCOC will be generated from the recipient's phone number"
+                            )
+
                     payload.append(
                         {
                             "body": json_data["body"],
                             "to": json_data["to"],
                             "sid": json_data.get("sid"),
+                            "country_dialing_code": country_dialing_code,
+                            "operator_code": operator_code,
                         }
                     )
+
                     result["message"] = "queued"
 
                 results["response"].append(result)
@@ -762,13 +810,35 @@ def publish_endpoint(reference: str, service_id: str):
                         )
 
                     else:
+                        country_dialing_code = row.get("cdc")
+                        operator_code = row.get("mcoc")
+
+                        if (
+                            country_dialing_code is not None
+                            and operator_code is not None
+                        ):
+                            if not country_dialing_code.isdigit():
+                                result["errors"].append(
+                                    "Invalid CDC (country_dialing_code). It should consist of digits."
+                                    "Both CDC and MCOC will be generated from the recipient's phone number"
+                                )
+
+                            if not operator_code.isdigit():
+                                result["errors"].append(
+                                    "Invalid MCOC (mobile_carrier_operator_code). It should consist of digits."
+                                    "Both CDC and MCOC will be generated from the recipient's phone number"
+                                )
+
                         payload.append(
                             {
                                 "body": row["body"],
                                 "to": row["to"],
                                 "sid": row.get("sid"),
+                                "country_dialing_code": country_dialing_code,
+                                "operator_code": operator_code,
                             }
                         )
+
                         result["message"] = "queued"
 
                     results["response"].append(result)
@@ -810,6 +880,8 @@ def publish_endpoint(reference: str, service_id: str):
                     phone_number=item["to"].replace(" ", ""),
                     user=current_user,
                     sid=item["sid"],
+                    country_dialing_code=item["country_dialing_code"],
+                    operator_code=item["operator_code"],
                 )
 
         @after_this_request

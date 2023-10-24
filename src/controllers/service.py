@@ -140,7 +140,12 @@ def handle_twilio_rest_exception(
 
 
 def handle_generic_exception(
-    service_id, project_reference, phone_number, user, error, sid
+    service_id,
+    project_reference,
+    phone_number,
+    user,
+    error,
+    sid,
 ):
     """
     Handle a generic exception.
@@ -151,7 +156,8 @@ def handle_generic_exception(
     :param user: User information.
     :param error: The exception object.
     """
-    error_message = "Oops! Something went wrong. Please try again. If the issue persists, please contact the developers."
+    error_message = "Oops! Something went wrong. Please try again. \
+    If the issue persists, please contact the developers."
     create_log(
         user_id=user.get("id"),
         service_id=service_id.lower(),
@@ -165,7 +171,12 @@ def handle_generic_exception(
 
 
 def publish_with_twilio(
-    twilio_client, service_id, project_reference, content, phone_number, user
+    twilio_client,
+    service_id,
+    project_reference,
+    content,
+    phone_number,
+    user,
 ):
     """
     Publish a message using the Twilio client.
@@ -204,7 +215,13 @@ def publish_with_twilio(
 
 
 def publish_with_deku_client(
-    service_name, service_id, project_reference, content, phone_number, user, sid
+    service_name,
+    service_id,
+    project_reference,
+    content,
+    phone_number,
+    user,
+    sid,
 ):
     """
     Publish a message using the Deku client.
@@ -253,20 +270,29 @@ def publish_with_deku_client(
     return model_to_dict(new_log, recurse=False)
 
 
-def publish_to_service(
-    service_id, content, project_reference, user, phone_number=None, sid=None
-):
+def publish_to_service(service_id, content, project_reference, user, **kwargs):
     """
     Publish a message to the specified service.
 
-    :param service_id: ID of the service.
-    :param content: Content of the message.
-    :param project_reference: Reference to the project.
-    :param user: User information.
-    :param phone_number: Recipient's phone number.
+    :param service_id: str - The unique identifier of the service.
+    :param content: str - The content of the message.
+    :param project_reference: str - A reference to the project.
+    :param user: dict - User information containing Twilio credentials.
+    :param kwargs: Keyword arguments for optional parameters.
+
+    :keyword phone_number: str, optional - The recipient's phone number.
+    :keyword sid: str, optional - An optional SID.
+    :keyword country_dialing_code: str, optional - The country dialing code.
+    :keyword operator_code: str, optional - The operator code.
+
     :return: The created log entry.
     :raises: InvalidPhoneNumber, NumberParseException, BadRequest, Exception
     """
+    phone_number = kwargs.get("phone_number")
+    sid = kwargs.get("sid")
+    country_dialing_code = kwargs.get("country_dialing_code")
+    operator_code = kwargs.get("operator_code")
+
     twilio_account_sid = user.get("twilio_account_sid")
     twilio_auth_token = user.get("twilio_auth_token")
     account_sid = user.get("account_sid")
@@ -278,6 +304,8 @@ def publish_to_service(
             service_id=service_id,
             project_reference=project_reference,
             phone_number=phone_number,
+            country_dialing_code=country_dialing_code,
+            operator_code=operator_code,
         )
 
         if service_name:
